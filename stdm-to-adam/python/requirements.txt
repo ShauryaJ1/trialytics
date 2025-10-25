@@ -1,0 +1,17 @@
+# Python Requirements for SDTM-to-ADaM Pipeline
+
+# Core dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+
+# R integration
+rpy2>=3.5.0
+
+# Optional: For SAS file reading (if not using R's haven)
+pyreadstat>=1.2.0
+
+# Data validation
+jsonschema>=4.17.0
+
+# Utilities
+python-dateutil>=2.8.2
