@@ -117,14 +117,24 @@ def check_r_package(package_name: str) -> bool:
     Returns:
         True if package is installed
     """
-    result = ro.r(f'requireNamespace("{package_name}", quietly = TRUE)')
-    return bool(result[0])
+    try:
+        result = ro.r(f'requireNamespace("{package_name}", quietly = TRUE)')
+        if result is not None and len(result) > 0:
+            return bool(result[0])
+        return False
+    except Exception:
+        return False
 
 
 def get_r_version() -> str:
     """Get R version string"""
-    version = ro.r('R.version.string')
-    return str(version[0])
+    try:
+        version = ro.r('R.version.string')
+        if version is not None and len(version) > 0:
+            return str(version[0])
+        return "Unknown"
+    except Exception:
+        return "Unknown"
 
 
 def validate_sdtm_dataset(df: pd.DataFrame, domain: str) -> Dict[str, Any]:
