@@ -1,0 +1,294 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for g6e.xlarge instance with AWS Deep Learning AMI (Ubuntu 22.04), public VPC setup, and Elastic IP'
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+
+  InstanceName:
+    Description: Name tag for the EC2 instance
+    Type: String
+    Default: g6e-xlarge-instance
+
+  EnableSSH:
+    Description: Enable SSH access from anywhere (0.0.0.0/0)
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EnableHTTP:
+    Description: Enable HTTP access from anywhere
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EnableHTTPS:
+    Description: Enable HTTPS access from anywhere
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  AdditionalPort:
+    Description: Additional port to open (e.g., 8080 for vLLM). Leave 0 to disable
+    Type: Number
+    Default: 8080
+    MinValue: 0
+    MaxValue: 65535
+
+Mappings:
+  # AWS Deep Learning Base GPU AMI (Ubuntu 22.04) - US-EAST-1 ONLY
+  RegionMap:
+    us-east-1:
+      AMI: ami-07e05a9b31a088ae5  # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
+
+Conditions:
+  CreateSSHRule: !Equals [!Ref EnableSSH, 'true']
+  CreateHTTPRule: !Equals [!Ref EnableHTTP, 'true']
+  CreateHTTPSRule: !Equals [!Ref EnableHTTPS, 'true']
+  CreateAdditionalPortRule: !Not [!Equals [!Ref AdditionalPort, 0]]
+
+Resources:
+  # VPC Configuration
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-VPC'
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-IGW'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicSubnet'
+
+  # Route Table for Public Subnet
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicRouteTable'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Security Group
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for g6e.xlarge instance
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-SecurityGroup'
+
+  # SSH Rule
+  SSHIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateSSHRule
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+
+  # HTTP Rule
+  HTTPIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateHTTPRule
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+
+  # HTTPS Rule
+  HTTPSIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateHTTPSRule
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+
+  # Additional Port Rule
+  AdditionalPortIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateAdditionalPortRule
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref AdditionalPort
+      ToPort: !Ref AdditionalPort
+      CidrIp: 0.0.0.0/0
+
+  # Egress Rule (Allow all outbound traffic)
+  EgressRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: -1
+      CidrIp: 0.0.0.0/0
+
+  # EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: g6e.xlarge
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 100
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # AWS Deep Learning AMI already includes:
+          # - NVIDIA drivers (latest version)
+          # - CUDA toolkit
+          # - cuDNN
+          # - Docker with NVIDIA Container Toolkit
+          # - PyTorch, TensorFlow, MXNet frameworks
+          # - Conda environments
+          
+          # Update system
+          apt-get update
+          apt-get upgrade -y
+          
+          # Ensure Docker is enabled (should already be installed)
+          systemctl enable docker
+          systemctl restart docker
+          
+          # Install any additional tools
+          apt-get install -y htop nvtop tmux
+          
+          # Configure NVIDIA Container Runtime (should already be configured)
+          nvidia-ctk runtime configure --runtime=docker || true
+          systemctl restart docker
+          
+          # Create setup complete marker
+          touch /tmp/setup-complete
+          
+          # Log system info
+          nvidia-smi > /tmp/gpu-info.log
+          docker --version >> /tmp/setup.log
+          python3 --version >> /tmp/setup.log
+      Tags:
+        - Key: Name
+          Value: !Ref InstanceName
+
+  # Elastic IP
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EIP'
+
+  # Associate Elastic IP with Instance
+  EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance
+      EIP: !Ref ElasticIP
+
+Outputs:
+  InstanceId:
+    Description: Instance ID
+    Value: !Ref EC2Instance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  PublicIP:
+    Description: Elastic IP address of the instance
+    Value: !Ref ElasticIP
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  PrivateIP:
+    Description: Private IP address of the instance
+    Value: !GetAtt EC2Instance.PrivateIp
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateIP'
+
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPCId'
+
+  PublicSubnetId:
+    Description: Public Subnet ID
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnetId'
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref InstanceSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i ~/.ssh/${KeyName}.pem ubuntu@${ElasticIP}'
+
+  AMIDetails:
+    Description: AMI Information
+    Value: 'Deep Learning Base GPU AMI (Ubuntu 22.04) with NVIDIA drivers, CUDA, PyTorch, TensorFlow pre-installed'

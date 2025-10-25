@@ -1,0 +1,49 @@
+# QUICK DEPLOYMENT COMMANDS FOR G6E.XLARGE WITH AWS DEEP LEARNING AMI
+# ====================================================================
+# REGION: US-EAST-1 ONLY (Deep Learning AMI: ami-07e05a9b31a088ae5)
+
+# 1. FASTEST: Use the deployment script
+chmod +x deploy-g6e-instance.sh
+./deploy-g6e-instance.sh
+
+# 2. ONE-LINER: Deploy complete stack (replace KEY_NAME)
+aws cloudformation create-stack --stack-name g6e-stack --template-body file://g6e-instance-vpc-stack.yaml --parameters ParameterKey=KeyName,ParameterValue=MY-KEY-NAME --region us-east-1 && aws cloudformation wait stack-create-complete --stack-name g6e-stack --region us-east-1 && aws cloudformation describe-stacks --stack-name g6e-stack --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' --output text --region us-east-1
+
+# 3. EXISTING VPC: Quick launch with your current setup
+# First, set your variables:
+export KEY_NAME="your-key-name"
+export SUBNET_ID="subnet-xxxxx"  # Must be a public subnet
+export SG_ID="sg-xxxxx"
+export REGION="us-east-1"  # MUST be us-east-1 for Deep Learning AMI
+
+# Then run this command (uses Deep Learning AMI):
+INSTANCE_ID=$(aws ec2 run-instances --image-id ami-07e05a9b31a088ae5 --instance-type g6e.xlarge --key-name $KEY_NAME --subnet-id $SUBNET_ID --security-group-ids $SG_ID --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=g6e-deeplearning}]' --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3}' --query 'Instances[0].InstanceId' --output text --region $REGION) && echo "Instance: $INSTANCE_ID" && aws ec2 wait instance-running --instance-ids $INSTANCE_ID --region $REGION && ALLOC_ID=$(aws ec2 allocate-address --domain vpc --query 'AllocationId' --output text --region $REGION) && aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id $ALLOC_ID --region $REGION && aws ec2 describe-addresses --allocation-ids $ALLOC_ID --query 'Addresses[0].PublicIp' --output text --region $REGION
+
+# 4. CHECK STACK STATUS
+aws cloudformation describe-stacks --stack-name g6e-stack --query 'Stacks[0].StackStatus' --output text
+
+# 5. GET ALL OUTPUTS
+aws cloudformation describe-stacks --stack-name g6e-stack --query 'Stacks[0].Outputs' --output table
+
+# 6. SSH TO INSTANCE (after getting Elastic IP)
+ssh -i ~/.ssh/YOUR-KEY.pem ubuntu@ELASTIC-IP
+
+# 7. DELETE EVERYTHING
+aws cloudformation delete-stack --stack-name g6e-stack
+
+# 8. LIST ALL YOUR G6E INSTANCES
+aws ec2 describe-instances --filters "Name=instance-type,Values=g6e.xlarge" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[InstanceId,PublicIpAddress,PrivateIpAddress,Tags[?Key==`Name`].Value|[0]]' --output table
+
+# 9. TERMINATE SPECIFIC INSTANCE AND RELEASE EIP
+aws ec2 terminate-instances --instance-ids i-xxxxx
+aws ec2 release-address --allocation-id eipalloc-xxxxx
+
+# AWS Deep Learning Base GPU AMI (Ubuntu 22.04) - US-EAST-1 ONLY:
+# us-east-1: ami-07e05a9b31a088ae5
+# 
+# This AMI includes:
+# - NVIDIA drivers (latest)
+# - CUDA toolkit & cuDNN
+# - PyTorch, TensorFlow, MXNet
+# - Docker with NVIDIA Container Toolkit
+# - Conda environments

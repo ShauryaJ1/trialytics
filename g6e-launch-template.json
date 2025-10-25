@@ -1,0 +1,59 @@
+{
+  "LaunchTemplateName": "g6e-xlarge-deeplearning-template",
+  "VersionDescription": "g6e.xlarge instance with AWS Deep Learning Base GPU AMI (Ubuntu 22.04)",
+  "LaunchTemplateData": {
+    "InstanceType": "g6e.xlarge",
+    "ImageId": "ami-07e05a9b31a088ae5",
+    "KeyName": "YOUR-KEY-NAME",
+    "BlockDeviceMappings": [
+      {
+        "DeviceName": "/dev/sda1",
+        "Ebs": {
+          "VolumeSize": 100,
+          "VolumeType": "gp3",
+          "DeleteOnTermination": true,
+          "Iops": 3000,
+          "Throughput": 125
+        }
+      }
+    ],
+    "NetworkInterfaces": [
+      {
+        "AssociatePublicIpAddress": true,
+        "DeleteOnTermination": true,
+        "DeviceIndex": 0,
+        "Groups": ["YOUR-SECURITY-GROUP-ID"]
+      }
+    ],
+    "TagSpecifications": [
+      {
+        "ResourceType": "instance",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "g6e-xlarge-instance"
+          },
+          {
+          "Key": "OS",
+          "Value": "Deep-Learning-AMI-Ubuntu-22.04"
+          }
+        ]
+      },
+      {
+        "ResourceType": "volume",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "g6e-xlarge-volume"
+          }
+        ]
+      }
+    ],
+    "UserData": "IyEvYmluL2Jhc2gKIyBBV1MgRGVlcCBMZWFybmluZyBBTUkgYWxyZWFkeSBpbmNsdWRlczoKIyAtIE5WSURJQSBkcml2ZXJzIChsYXRlc3QgdmVyc2lvbikKIyAtIENVREEgdG9vbGtpdCwgY3VETk4KIyAtIERvY2tlciB3aXRoIE5WSURJQSBDb250YWluZXIgVG9vbGtpdAojIC0gUHlUb3JjaCwgVGVuc29yRmxvdywgTVhOZXQgZnJhbWV3b3JrcwoKIyBVcGRhdGUgc3lzdGVtCmFwdC1nZXQgdXBkYXRlCmFwdC1nZXQgdXBncmFkZSAteQoKIyBFbnN1cmUgRG9ja2VyIGlzIGVuYWJsZWQKc3lzdGVtY3RsIGVuYWJsZSBkb2NrZXIKc3lzdGVtY3RsIHJlc3RhcnQgZG9ja2VyCgojIEluc3RhbGwgYWRkaXRpb25hbCB0b29scwphcHQtZ2V0IGluc3RhbGwgLXkgaHRvcCBudnRvcCB0bXV4CgojIENyZWF0ZSBzZXR1cCBjb21wbGV0ZSBtYXJrZXIKdG91Y2ggL3RtcC9zZXR1cC1jb21wbGV0ZQoKIyBMb2cgc3lzdGVtIGluZm8KbnZpZGlhLXNtaSA+IC90bXAvZ3B1LWluZm8ubG9nCmRvY2tlciAtLXZlcnNpb24gPj4gL3RtcC9zZXR1cC5sb2cKcHl0aG9uMyAtLXZlcnNpb24gPj4gL3RtcC9zZXR1cC5sb2cK",
+    "MetadataOptions": {
+      "HttpTokens": "optional",
+      "HttpPutResponseHopLimit": 2,
+      "HttpEndpoint": "enabled"
+    }
+  }
+}
