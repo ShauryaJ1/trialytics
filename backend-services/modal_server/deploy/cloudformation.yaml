@@ -46,20 +46,21 @@ Conditions:
   CreateSSHRule: !Equals [!Ref EnableSSH, 'true']
 
 Resources:
-  # ECR Repository
-  ECRRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Ref ECRRepositoryName
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      EncryptionConfiguration:
-        EncryptionType: AES256
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-ECR'
-        - Key: Application
-          Value: ModalServer
+  # Note: ECR Repository is created separately and already exists
+  # If you need to create it, uncomment the section below:
+  # ECRRepository:
+  #   Type: AWS::ECR::Repository
+  #   Properties:
+  #     RepositoryName: !Ref ECRRepositoryName
+  #     ImageScanningConfiguration:
+  #       ScanOnPush: true
+  #     EncryptionConfiguration:
+  #       EncryptionType: AES256
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-ECR'
+  #       - Key: Application
+  #         Value: ModalServer
 
   # VPC Configuration
   VPC:
