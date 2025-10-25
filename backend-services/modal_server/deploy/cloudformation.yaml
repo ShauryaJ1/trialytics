@@ -1,0 +1,364 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Modal FastAPI server on t3a.medium with ECR integration'
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+  
+  InstanceName:
+    Description: Name tag for the EC2 instance
+    Type: String
+    Default: modal-server-instance
+  
+  ECRRepositoryName:
+    Description: Name of the ECR repository
+    Type: String
+    Default: modal-server
+  
+  ImageTag:
+    Description: Docker image tag to deploy
+    Type: String
+    Default: latest
+  
+  EnableSSH:
+    Description: Enable SSH access from anywhere (0.0.0.0/0)
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Mappings:
+  # Ubuntu 22.04 LTS AMI IDs for different regions
+  RegionMap:
+    us-east-1:
+      AMI: ami-0e2c8caa4b6378d8c  # Ubuntu 22.04 LTS
+    us-west-2:
+      AMI: ami-0b9c1fd7a883e9d14  # Ubuntu 22.04 LTS
+    eu-west-1:
+      AMI: ami-0d4d3e68e7dbcd7f7  # Ubuntu 22.04 LTS
+    eu-central-1:
+      AMI: ami-02c8b2c7c10fb8f69  # Ubuntu 22.04 LTS
+
+Conditions:
+  CreateSSHRule: !Equals [!Ref EnableSSH, 'true']
+
+Resources:
+  # Note: ECR Repository is created separately and already exists
+  # If you need to create it, uncomment the section below:
+  # ECRRepository:
+  #   Type: AWS::ECR::Repository
+  #   Properties:
+  #     RepositoryName: !Ref ECRRepositoryName
+  #     ImageScanningConfiguration:
+  #       ScanOnPush: true
+  #     EncryptionConfiguration:
+  #       EncryptionType: AES256
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-ECR'
+  #       - Key: Application
+  #         Value: ModalServer
+
+  # VPC Configuration
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-VPC'
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-IGW'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicSubnet'
+
+  # Route Table for Public Subnet
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicRouteTable'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Security Group
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Modal FastAPI server
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-SecurityGroup'
+
+  # SSH Rule
+  SSHIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: CreateSSHRule
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+
+  # HTTP Rule (port 80)
+  HTTPIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+
+  # FastAPI Port Rule (port 8000)
+  FastAPIIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8000
+      ToPort: 8000
+      CidrIp: 0.0.0.0/0
+
+  # Egress Rule (Allow all outbound traffic)
+  EgressRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref InstanceSecurityGroup
+      IpProtocol: -1
+      CidrIp: 0.0.0.0/0
+
+  # IAM Role for EC2 Instance
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EC2Role'
+
+  # Instance Profile
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3a.medium
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Update system
+          apt-get update
+          apt-get upgrade -y
+          
+          # Install Docker
+          apt-get install -y \
+            ca-certificates \
+            curl \
+            gnupg \
+            lsb-release
+          
+          # Add Docker's official GPG key
+          mkdir -p /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          
+          # Set up the Docker repository
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          
+          # Install Docker Engine
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+          
+          # Start and enable Docker
+          systemctl start docker
+          systemctl enable docker
+          
+          # Install AWS CLI v2
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          apt-get install -y unzip
+          unzip awscliv2.zip
+          ./aws/install
+          rm -rf awscliv2.zip aws/
+          
+          # Configure Docker to use ECR
+          aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          
+          # Pull and run the Docker container
+          docker pull ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
+          
+          # Run the container with restart policy
+          docker run -d \
+            --name modal-server \
+            --restart unless-stopped \
+            -p 80:8000 \
+            -p 8000:8000 \
+            ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
+          
+          # Create systemd service for container auto-start
+          cat > /etc/systemd/system/modal-server.service << EOF
+          [Unit]
+          Description=Modal FastAPI Server
+          After=docker.service
+          Requires=docker.service
+          
+          [Service]
+          Type=simple
+          Restart=always
+          RestartSec=10
+          ExecStart=/usr/bin/docker start -a modal-server
+          ExecStop=/usr/bin/docker stop modal-server
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          systemctl daemon-reload
+          systemctl enable modal-server
+          
+          # Setup CloudWatch logging (optional)
+          docker run -d \
+            --name=cloudwatch-agent \
+            --restart=always \
+            -v /var/log:/var/log \
+            -v /var/lib/docker/containers:/var/lib/docker/containers \
+            amazon/cloudwatch-agent:latest
+          
+          # Log setup completion
+          echo "Modal server setup completed at $(date)" >> /var/log/setup.log
+          
+      Tags:
+        - Key: Name
+          Value: !Ref InstanceName
+        - Key: Application
+          Value: ModalServer
+
+  # Elastic IP
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EIP'
+
+  # Associate Elastic IP with Instance
+  EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance
+      EIP: !Ref ElasticIP
+
+Outputs:
+  InstanceId:
+    Description: Instance ID
+    Value: !Ref EC2Instance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  PublicIP:
+    Description: Elastic IP address of the instance
+    Value: !Ref ElasticIP
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  ECRRepositoryURI:
+    Description: ECR Repository URI
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ECRRepositoryURI'
+
+  APIEndpoint:
+    Description: API Endpoint URL
+    Value: !Sub 'http://${ElasticIP}:8000'
+    Export:
+      Name: !Sub '${AWS::StackName}-APIEndpoint'
+
+  SwaggerDocs:
+    Description: Swagger Documentation URL
+    Value: !Sub 'http://${ElasticIP}:8000/docs'
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i ~/.ssh/${KeyName}.pem ubuntu@${ElasticIP}'
+
+  DockerPullCommand:
+    Description: Command to pull the Docker image
+    Value: !Sub 'docker pull ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}'
+
+  InstanceType:
+    Description: EC2 Instance Type
+    Value: t3a.medium
