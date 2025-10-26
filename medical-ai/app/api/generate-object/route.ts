@@ -36,6 +36,7 @@ export async function POST(req: Request) {
         schema: recipeSchema,
         prompt: prompt || 'Generate a detailed lasagna recipe for 6 people',
         temperature: 0.7,
+        maxOutputTokens: 2000,
         mode: 'json', // Force JSON mode for VLLM
       });
 
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
         model: qwenModel,
         prompt: `${schemaDescription}\n\nRequest: ${prompt || 'Generate a detailed lasagna recipe for 6 people'}\n\nRespond ONLY with valid JSON, no additional text:`,
         temperature: 0.7,
+        maxOutputTokens: 2000,
       });
 
       console.log('Generated text:', text);
