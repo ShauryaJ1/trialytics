@@ -7,6 +7,7 @@ import {
 } from 'ai';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -150,13 +151,70 @@ export default function CodeStreamChat() {
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePanel, setShowFilePanel] = useState(true);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [initialMessages, setInitialMessages] = useState<ExecuteCodeMessage[]>([]);
+  const [trialName, setTrialName] = useState<string | null>(null);
   
-  const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
+  const searchParams = useSearchParams();
+  
+  // Get chatId from URL params
+  useEffect(() => {
+    const urlChatId = searchParams.get('chatId');
+    if (urlChatId) {
+      setChatId(urlChatId);
+    }
+  }, [searchParams]);
+  
+  // Load chat history and trial name from localStorage
+  useEffect(() => {
+    if (chatId) {
+      const savedMessages = localStorage.getItem(`chat_${chatId}`);
+      if (savedMessages) {
+        try {
+          const parsedMessages = JSON.parse(savedMessages);
+          setInitialMessages(parsedMessages);
+        } catch (error) {
+          console.error('Error parsing saved messages:', error);
+          setInitialMessages([]);
+        }
+      }
+      
+      // Get trial name from trials list
+      const savedTrials = localStorage.getItem('clinicalTrials');
+      if (savedTrials) {
+        try {
+          const trials = JSON.parse(savedTrials);
+          const trial = trials.find((t: any) => t.chatId === chatId);
+          if (trial) {
+            setTrialName(trial.title);
+          }
+        } catch (error) {
+          console.error('Error parsing saved trials:', error);
+        }
+      }
+    }
+  }, [chatId]);
+  
+  const { messages, sendMessage: originalSendMessage, status, setMessages } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
       api: '/api/execute-code-stream',
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
+  
+  // Load initial messages when they become available
+  useEffect(() => {
+    if (initialMessages.length > 0 && messages.length === 0) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages, messages.length, setMessages]);
+  
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (chatId && messages.length > 0) {
+      localStorage.setItem(`chat_${chatId}`, JSON.stringify(messages));
+    }
+  }, [messages, chatId]);
 
   // Wrap sendMessage to inject file context
   const sendMessage = (message: { text: string }) => {
@@ -223,7 +281,9 @@ User request: ${message.text}`;
       <div className="bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-5xl font-bold text-teal-900">Analysis Assistant.</h1>
+            <h1 className="text-5xl font-bold text-teal-900">
+              {trialName ? `${trialName} - Analysis` : 'Analysis Assistant.'}
+            </h1>
             
             <Link 
               href="/trials"
