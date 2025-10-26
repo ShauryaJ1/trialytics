@@ -3,18 +3,73 @@
 
 /* Page transition styles */
 .page-transition {
-  animation: pageEnter 0.3s ease-out;
+  animation: pageEnter 0.6s ease-out;
 }
 
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Fade in animation */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Fade in up animation */
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation delays */
+.animation-delay-200 {
+  animation-delay: 0.2s;
+  animation-fill-mode: both;
+}
+
+.animation-delay-400 {
+  animation-delay: 0.4s;
+  animation-fill-mode: both;
+}
+
+.animation-delay-600 {
+  animation-delay: 0.6s;
+  animation-fill-mode: both;
+}
+
+/* Smooth hover transitions */
+.smooth-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-hover:hover {
+  transform: translateY(-2px);
 }
 
 /* Smooth transitions for all elements */

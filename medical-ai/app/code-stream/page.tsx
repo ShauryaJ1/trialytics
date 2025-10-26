@@ -7,7 +7,9 @@ import {
 } from 'ai';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
+import { useAuth } from '@/app/contexts/AuthContext';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -18,7 +20,7 @@ import { Response } from '@/components/ai-elements/response';
 import { CodeBlock, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import { MessageWithAvatar } from './message-component';
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
-import { ArrowUp, ChevronRight, ChevronDown, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { ArrowUp, ChevronRight, ChevronDown, CheckCircle2, XCircle, Clock, LogOut } from 'lucide-react';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -148,6 +150,7 @@ function CodeExecutionResult({
 }
 
 export default function CodeStreamChat() {
+  const { userEmail, logout } = useAuth();
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePanel, setShowFilePanel] = useState(true);
@@ -156,6 +159,7 @@ export default function CodeStreamChat() {
   const [trialName, setTrialName] = useState<string | null>(null);
   
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   // Get chatId from URL params
   useEffect(() => {
@@ -215,6 +219,11 @@ export default function CodeStreamChat() {
       localStorage.setItem(`chat_${chatId}`, JSON.stringify(messages));
     }
   }, [messages, chatId]);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   // Wrap sendMessage to inject file context
   const sendMessage = (message: { text: string }) => {
@@ -276,25 +285,40 @@ User request: ${message.text}`;
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 font-sans page-transition">
-      {/* Header */}
-      <div className="bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-5xl font-bold text-teal-900">
-              {trialName ? `${trialName} - Analysis` : 'Analysis Assistant.'}
-            </h1>
-            
-            <Link 
-              href="/trials"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowUp className="w-4 h-4" />
-              Back to Trials
-            </Link>
+    <ProtectedRoute>
+      <div className="flex flex-col min-h-screen bg-gray-50 font-sans page-transition">
+        {/* Header */}
+        <div className="bg-gray-50 py-8">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-5xl font-bold text-teal-900">
+                  {trialName ? `${trialName} - Analysis` : 'Analysis Assistant.'}
+                </h1>
+                {userEmail && (
+                  <p className="text-sm text-gray-600 mt-1">Welcome, {userEmail}</p>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <Link 
+                  href="/trials"
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                  Back to Trials
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
+            </div>
           </div>
-         </div>
-       </div>
+        </div>
 
       {/* File Upload Panel */}
       <div className="bg-gray-50 border-b border-gray-200">
@@ -492,6 +516,7 @@ User request: ${message.text}`;
           </form>
         </div>
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

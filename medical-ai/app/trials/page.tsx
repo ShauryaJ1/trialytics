@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUp, MessageCircle, Plus, X } from 'lucide-react';
+import { ArrowUp, MessageCircle, Plus, X, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 interface Trial {
   id: string;
@@ -17,6 +19,7 @@ interface Trial {
 
 export default function TrialsPage() {
   const router = useRouter();
+  const { userEmail, logout } = useAuth();
   const [trials, setTrials] = useState<Trial[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,19 +118,39 @@ export default function TrialsPage() {
   const handleDeleteTrial = (id: string) => {
     setTrials(prev => prev.filter(trial => trial.id !== id));
   };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
   return (
-    <div className="min-h-screen bg-gray-50 page-transition">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 page-transition animate-fade-in">
       {/* Header */}
       <header className="bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <h1 className="text-5xl font-bold text-teal-900">Clinical Trials.</h1>
-          <Link 
-            href="/"
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-all duration-300 smooth-hover"
-          >
-            <ArrowUp className="w-4 h-4" />
-            Home
-          </Link>
+          <div>
+            <h1 className="text-5xl font-bold text-teal-900">Clinical Trials.</h1>
+            {userEmail && (
+              <p className="text-sm text-gray-600 mt-1">Welcome, {userEmail}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-all duration-300 smooth-hover"
+            >
+              <ArrowUp className="w-4 h-4" />
+              Home
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-all duration-300 smooth-hover"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -278,6 +301,7 @@ export default function TrialsPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }
