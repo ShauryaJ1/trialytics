@@ -34,6 +34,18 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
+  
+  ModalTokenId:
+    Description: Modal API Token ID (optional - if provided, will auto-deploy Modal functions)
+    Type: String
+    Default: ''
+    NoEcho: true
+  
+  ModalTokenSecret:
+    Description: Modal API Token Secret (optional - if provided, will auto-deploy Modal functions)
+    Type: String
+    Default: ''
+    NoEcho: true
 
 Mappings:
   # Ubuntu 22.04 LTS AMI IDs for different regions
@@ -224,7 +236,8 @@ Resources:
           set -e
           
           # Deployment timestamp: ${DeploymentTimestamp}
-          # This forces CloudFormation to update the instance
+          # Image tag: ${ImageTag}
+          # This forces CloudFormation to recreate the instance
           
           # Update system
           apt-get update
@@ -264,22 +277,43 @@ Resources:
           # Configure Docker to use ECR
           aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
           
-          # Pull and run the Docker container
+          # Stop and remove ALL existing containers to ensure clean state
+          docker stop $(docker ps -aq) 2>/dev/null || true
+          docker rm $(docker ps -aq) 2>/dev/null || true
+          
+          # Remove ALL local images to force fresh pull
+          docker rmi $(docker images -q) 2>/dev/null || true
+          
+          # Force pull the specific Docker image tag
+          echo "Pulling specific image tag: ${ImageTag}"
           docker pull ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
           
-          # Stop and remove existing container if it exists
-          docker stop modal-server 2>/dev/null || true
-          docker rm modal-server 2>/dev/null || true
-          
-          # Run the container with restart policy
+          # Run the container with restart policy and Modal deployment
           docker run -d \
             --name modal-server \
             --restart unless-stopped \
             -p 80:8000 \
             -p 8000:8000 \
+            -e DEPLOY_MODAL=true \
+            -e MODAL_TOKEN_ID="${ModalTokenId}" \
+            -e MODAL_TOKEN_SECRET="${ModalTokenSecret}" \
             ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
           
-          # Create systemd service for container auto-start
+          # Create update script for manual updates
+          cat > /usr/local/bin/update-modal-server.sh << EOF
+          #!/bin/bash
+          echo "Updating Modal server..."
+          docker stop modal-server || true
+          docker rm modal-server || true
+          docker rmi \$(docker images -q) || true
+          aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          docker pull ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
+          docker run -d --name modal-server --restart unless-stopped -p 80:8000 -p 8000:8000 -e DEPLOY_MODAL=true -e MODAL_TOKEN_ID="${ModalTokenId}" -e MODAL_TOKEN_SECRET="${ModalTokenSecret}" ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
+          echo "Update complete!"
+          EOF
+          chmod +x /usr/local/bin/update-modal-server.sh
+          
+          # Create systemd service for auto-restart
           cat > /etc/systemd/system/modal-server.service << EOF
           [Unit]
           Description=Modal FastAPI Server
@@ -324,12 +358,15 @@ Resources:
           docker stop modal-server
           docker rm modal-server
           
-          # Run new container
+          # Run new container with Modal credentials
           docker run -d \
             --name modal-server \
             --restart unless-stopped \
             -p 80:8000 \
             -p 8000:8000 \
+            -e DEPLOY_MODAL=true \
+            -e MODAL_TOKEN_ID="${ModalTokenId}" \
+            -e MODAL_TOKEN_SECRET="${ModalTokenSecret}" \
             ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
           
           echo "Modal server updated successfully!"

@@ -31,6 +31,10 @@ print_info() {
     echo -e "${YELLOW}→ $1${NC}"
 }
 
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
 # Check prerequisites
 check_prerequisites() {
     print_info "Checking prerequisites..."
@@ -129,6 +133,25 @@ deploy_cloudformation() {
     DEPLOYMENT_TIMESTAMP=$(date +%s)
     print_info "Deployment timestamp: $DEPLOYMENT_TIMESTAMP"
     
+    # Load Modal credentials from .env if it exists
+    if [ -f "../.env" ]; then
+        # Parse .env file safely (format: token_id = value)
+        # Updated to handle .env without quotes and strip Windows line endings
+        MODAL_TOKEN_ID=$(grep "token_id" ../.env | cut -d'=' -f2 | tr -d ' ' | tr -d '\r')
+        MODAL_TOKEN_SECRET=$(grep "token_secret" ../.env | cut -d'=' -f2 | tr -d ' ' | tr -d '\r')
+        if [ -n "$MODAL_TOKEN_ID" ] && [ -n "$MODAL_TOKEN_SECRET" ]; then
+            print_info "Loaded Modal credentials from .env file"
+        else
+            print_warning "Could not parse Modal credentials from .env file"
+            MODAL_TOKEN_ID=""
+            MODAL_TOKEN_SECRET=""
+        fi
+    else
+        MODAL_TOKEN_ID=""
+        MODAL_TOKEN_SECRET=""
+        print_warning "No .env file found - Modal deployment will be skipped"
+    fi
+    
     # Check if stack exists
     if aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION &> /dev/null; then
         # Update existing stack
@@ -141,6 +164,8 @@ deploy_cloudformation() {
                 ParameterKey=ECRRepositoryName,ParameterValue=$ECR_REPO_NAME \
                 ParameterKey=ImageTag,ParameterValue=$IMAGE_TAG \
                 ParameterKey=DeploymentTimestamp,ParameterValue=$DEPLOYMENT_TIMESTAMP \
+                ParameterKey=ModalTokenId,ParameterValue=$MODAL_TOKEN_ID \
+                ParameterKey=ModalTokenSecret,ParameterValue=$MODAL_TOKEN_SECRET \
             --capabilities CAPABILITY_IAM \
             --region $REGION
         
@@ -158,6 +183,8 @@ deploy_cloudformation() {
                 ParameterKey=ECRRepositoryName,ParameterValue=$ECR_REPO_NAME \
                 ParameterKey=ImageTag,ParameterValue=$IMAGE_TAG \
                 ParameterKey=DeploymentTimestamp,ParameterValue=$DEPLOYMENT_TIMESTAMP \
+                ParameterKey=ModalTokenId,ParameterValue=$MODAL_TOKEN_ID \
+                ParameterKey=ModalTokenSecret,ParameterValue=$MODAL_TOKEN_SECRET \
             --capabilities CAPABILITY_IAM \
             --region $REGION
         

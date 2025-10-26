@@ -163,7 +163,32 @@ export async function POST(request: Request) {
 
 ## Important Notes:
 ### File Uploads:
-IT IS VITAL THAT YOU EXPLORE THE DATA BEFORE YOU TRY TO RUN OPERATIONS ON IT. USE executeCode TO EXPLORE THE DATA.
+IT IS VITAL THAT YOU EXPLORE THE DATA BEFORE YOU TRY TO RUN OPERATIONS ON IT. USE executeCode TO READ THE DATA.
+PDFs will probably contain statistical analysis procedures, so start by reading them with PyPDF2
+------------------------------
+# Example of how to read a PDF (one way)
+import requests
+import pdfplumber
+import io
+
+# Your pre-signed S3 URL
+pdf_url = "<url>"
+
+# Download the PDF
+response = requests.get(pdf_url)
+response.raise_for_status()
+
+# Open the PDF with pdfplumber
+with pdfplumber.open(io.BytesIO(response.content)) as pdf:
+    # Extract text from all pages
+    full_text = ""
+    for i, page in enumerate(pdf.pages, 1):
+        text = page.extract_text()
+        full_text += f"\n--- Page {i} ---\n{text}"
+    
+    print(f"Total pages: {len(pdf.pages)}")
+    print(full_text)
+------------------------------
 ### Modal Environment Limitations:
 - The Python code runs in an isolated Modal container
 - The tools (executeCode, displayTable) are NOT available inside the Python code. They aren't python functions, they are tools for you to use

@@ -12,6 +12,7 @@ from typing import Dict, Any
 app = modal.App("fastapi-python-sandbox")
 
 # Configure image with common data science packages
+# Cache bust: v2.0 - Added PDF and file processing packages
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "pandas",
     "numpy",
@@ -33,8 +34,8 @@ image = modal.Image.debian_slim(python_version="3.11").pip_install(
 
 @app.function(
     image=image,
-    timeout=120,  # 2 minutes timeout
-    memory=2048,  # 2GB memory
+    timeout=600,  # 10 minutes max timeout (we'll handle shorter timeouts in the function)
+    memory=4096,  # 4GB memory for complex operations
     cpu=2.0,
 )
 def execute_code(code: str, input_file_url: str = None, output_file_url: str = None, file_type: str = None) -> Dict[str, Any]:
@@ -196,21 +197,12 @@ def run_code(code: str, timeout: int = 120, input_file_url: str = None, output_f
         file_type: Optional file type hint (csv, xpt, pdf)
     """
     try:
-        # Create dynamic function with specified timeout
-        @app.function(
-            image=image,
-            timeout=min(timeout, 600),  # Cap at 10 minutes
-            memory=4096 if timeout > 120 else 2048,  # More memory for longer jobs
-            cpu=2.0,
-        )
-        def execute_dynamic(code_str: str, input_url: str = None, output_url: str = None, f_type: str = None) -> Dict[str, Any]:
-            """Dynamic execution function with custom timeout and S3 support."""
-            # Call the main execute_code function with all parameters
-            return execute_code(code_str, input_url, output_url, f_type)
-        
-        # Execute remotely on Modal
+        # Use the already-defined execute_code function directly
+        # Modal doesn't allow creating decorated functions inside other functions
         with app.run():
-            result = execute_dynamic.remote(code, input_file_url, output_file_url, file_type)
+            # The execute_code function already has the @app.function decorator
+            # and is defined at module level, so this works properly
+            result = execute_code.remote(code, input_file_url, output_file_url, file_type)
         return result
     except Exception as e:
         return {

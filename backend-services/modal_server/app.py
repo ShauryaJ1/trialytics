@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Parse Modal tokens from .env file
-# The .env file has format: token_id = "ak-xxx"
-modal_token_id = os.getenv("token_id", "").strip().strip('"')
-modal_token_secret = os.getenv("token_secret", "").strip().strip('"')
+# The .env file has format: token_id = ak-xxx (no quotes)
+modal_token_id = os.getenv("token_id", "").strip()
+modal_token_secret = os.getenv("token_secret", "").strip()
 
 # Set Modal environment variables with correct names
 if modal_token_id:
