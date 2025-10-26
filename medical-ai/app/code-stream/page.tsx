@@ -5,7 +5,8 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from 'ai';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -222,17 +223,18 @@ function TableDisplay({
   );
 }
 
-export default function CodeStreamChat() {
+function CodeStreamSession({ chatId, initialMessages }: { chatId: string; initialMessages: ExecuteCodeMessage[] }) {
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePanel, setShowFilePanel] = useState(false);
   
   const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
-      api: '/api/execute-code-stream',
+      api: `/api/execute-code-stream?sid=${chatId}`,
     }),
+    initialMessages,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-  });
+  } as any);
 
   // Wrap sendMessage to inject file context
   const sendMessage = (message: { text: string }) => {
@@ -609,4 +611,56 @@ User request: ${message.text}`;
       </div>
     </div>
   );
+}
+
+export default function CodeStreamChat() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [initialMessages, setInitialMessages] = useState<ExecuteCodeMessage[] | null>(null);
+
+  // Establish or adopt the chat id from the URL (?id=...)
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (idParam && uuidRegex.test(idParam)) {
+      setChatId(idParam);
+      return;
+    }
+    const newId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set('id', newId);
+    router.replace(`/code-stream?${params.toString()}`);
+    setChatId(newId);
+  }, [router, searchParams]);
+
+  // Load existing history for this chat id
+  useEffect(() => {
+    if (!chatId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/execute-code-stream?sid=${chatId}` , { cache: 'no-store' });
+        const data = await res.json();
+        const msgs = Array.isArray(data?.messages) ? (data.messages as ExecuteCodeMessage[]) : [];
+        if (active) setInitialMessages(msgs);
+      } catch (_err) {
+        if (active) setInitialMessages([] as ExecuteCodeMessage[]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [chatId]);
+
+  if (!chatId || initialMessages === null) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-600">Loading chat…</div>
+    );
+  }
+
+  return <CodeStreamSession chatId={chatId} initialMessages={initialMessages} />;
 }

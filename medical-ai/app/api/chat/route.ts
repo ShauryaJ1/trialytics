@@ -6,6 +6,50 @@ import { createSupabaseAdmin } from '@/lib/supabase-server';
 export const runtime = 'edge';
 export const maxDuration = 60;
 
+// Fetch existing chat history for a given session id
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const sidParam = url.searchParams.get('sid');
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; // v4 UUID
+    if (!sidParam || !uuidRegex.test(sidParam)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or missing sid' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('chat_logs')
+      .select('session_id, messages, title, model, token_count, updated_at')
+      .eq('session_id', sidParam)
+      .maybeSingle();
+
+    if (error) {
+      console.error('chat_logs GET error:', error);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch chat history' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify(
+        data ?? { session_id: sidParam, messages: [], title: null, model: null, token_count: null }
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Chat GET error details:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch chat history';
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { messages }: { messages: UIMessage[] } = await req.json();

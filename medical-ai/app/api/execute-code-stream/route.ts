@@ -1,4 +1,5 @@
 import { qwenModel } from '@/lib/ai-provider';
+import { createSupabaseAdmin } from '@/lib/supabase-server';
 import {
   type InferUITools,
   type ToolSet,
@@ -12,6 +13,67 @@ import { z } from 'zod';
 
 export const runtime = 'edge';
 export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
+// Fetch existing chat history for a given session id (code-stream)
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const sidParam = url.searchParams.get('sid');
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; // v4 UUID
+    if (!sidParam || !uuidRegex.test(sidParam)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or missing sid' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createSupabaseAdmin();
+    let { data, error } = await supabase
+      .from('chat_logs')
+      .select('session_id, messages, title, model, token_count, updated_at')
+      .eq('session_id', sidParam)
+      .maybeSingle();
+
+    if (error) {
+      console.error('code-stream chat_logs GET error:', error);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch chat history' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If no row exists yet for this session, create one immediately so the chat exists on first load
+    if (!data) {
+      const { data: inserted, error: insertErr } = await supabase
+        .from('chat_logs')
+        .insert({ session_id: sidParam, messages: [] })
+        .select('session_id, messages, title, model, token_count, updated_at')
+        .single();
+      if (insertErr) {
+        console.error('code-stream chat_logs GET insert error:', insertErr);
+        // Fall back to returning an empty structure if insertion fails
+        return new Response(
+          JSON.stringify({ session_id: sidParam, messages: [], title: null, model: null, token_count: null }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      data = inserted;
+    }
+
+    return new Response(
+      JSON.stringify(data),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Code-stream GET error details:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch chat history';
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
 
 // Define the tools with proper schemas
 const tools = {
@@ -246,11 +308,15 @@ export type ExecuteCodeTools = InferUITools<typeof tools>;
 export type ExecuteCodeMessage = UIMessage<never, UIDataTypes, ExecuteCodeTools>;
 
 export async function POST(request: Request) {
-  const { messages }: { 
-    messages: ExecuteCodeMessage[];
-  } = await request.json();
+  const { messages }: { messages: ExecuteCodeMessage[] } = await request.json();
 
-  console.log('Processing streaming request with messages:', messages.length);
+  // Determine stable session id from URL
+  const url = new URL(request.url);
+  const sidParam = url.searchParams.get('sid');
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; // v4 UUID
+  const sessionId = sidParam && uuidRegex.test(sidParam) ? sidParam : crypto.randomUUID();
+
+  console.log('Processing streaming request with messages:', messages.length, 'session:', sessionId);
 
   // Add comprehensive system message about available tools and Modal environment
   const enhancedMessages = [
@@ -372,6 +438,75 @@ Remember: The tools enhance your capabilities but work independently. Plan your 
     tools,
     temperature: 0.7,
     maxOutputTokens: 4000,
+    onFinish: async (info: any) => {
+      try {
+        const supabase = createSupabaseAdmin();
+
+        // Build full transcript: incoming messages + assistant final text
+        const assistantText: string | undefined = info?.text;
+        const fullMessages = assistantText
+          ? [
+              ...messages,
+              {
+                id: crypto.randomUUID(),
+                role: 'assistant',
+                parts: [{ type: 'text', text: assistantText }],
+              },
+            ]
+          : messages;
+
+        const tokenCount =
+          info?.usage?.totalTokens ??
+          info?.response?.metadata?.vllm?.streamingUsage?.total_tokens ??
+          null;
+
+        // Derive a concise title from the first user message
+        const titleSource = messages.find((m) => m.role === 'user');
+        const title = titleSource
+          ? String(
+              (titleSource.parts || [])
+                .map((p: any) => (p?.type === 'text' ? p.text : ''))
+                .join(' ')
+            ).slice(0, 120)
+          : null;
+
+        try {
+          const { data: existing, error: selectErr } = await supabase
+            .from('chat_logs')
+            .select('session_id')
+            .eq('session_id', sessionId)
+            .maybeSingle();
+
+          if (selectErr) {
+            console.error('code-stream select error:', selectErr);
+          } else if (existing) {
+            const { error: updateErr } = await supabase
+              .from('chat_logs')
+              .update({
+                title,
+                model: 'Qwen/Qwen3-8B',
+                messages: fullMessages as any,
+                token_count: tokenCount,
+              })
+              .eq('session_id', sessionId);
+            if (updateErr) console.error('code-stream update error:', updateErr);
+          } else {
+            const { error: insertErr } = await supabase.from('chat_logs').insert({
+              session_id: sessionId,
+              title,
+              model: 'Qwen/Qwen3-8B',
+              messages: fullMessages as any,
+              token_count: tokenCount,
+            });
+            if (insertErr) console.error('code-stream insert error:', insertErr);
+          }
+        } catch (innerErr) {
+          console.error('code-stream persistence flow failed:', innerErr);
+        }
+      } catch (err) {
+        console.error('code-stream chat_logs persistence failed:', err);
+      }
+    },
   });
 
   return result.toUIMessageStreamResponse();

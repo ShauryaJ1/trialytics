@@ -2,19 +2,14 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useMemo, useState } from 'react';
+import type { UIMessage } from 'ai';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function ChatPage() {
-  // Stable session id used to dedupe chat history rows server-side
-  const sessionId = useMemo(
-    () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)),
-    []
-  );
-
+function ChatSession({ chatId, initialMessages }: { chatId: string; initialMessages: UIMessage[] }) {
   const { messages, sendMessage, status, error, stop } = useChat({
-    transport: new DefaultChatTransport({
-      api: `/api/chat?sid=${sessionId}`,
-    }),
+    transport: new DefaultChatTransport({ api: `/api/chat?sid=${chatId}` }),
+    initialMessages,
   });
 
   const [input, setInput] = useState('');
@@ -143,4 +138,56 @@ export default function ChatPage() {
       </form>
     </div>
   );
+}
+
+export default function ChatPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(null);
+
+  // Establish or adopt the chat id from the URL (?id=...)
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (idParam && uuidRegex.test(idParam)) {
+      setChatId(idParam);
+      return;
+    }
+    const newId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set('id', newId);
+    router.replace(`/?${params.toString()}`);
+    setChatId(newId);
+  }, [router, searchParams]);
+
+  // Load existing history for this chat id
+  useEffect(() => {
+    if (!chatId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/chat?sid=${chatId}`);
+        const data = await res.json();
+        const msgs = Array.isArray(data?.messages) ? (data.messages as UIMessage[]) : [];
+        if (active) setInitialMessages(msgs);
+      } catch (_err) {
+        if (active) setInitialMessages([]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [chatId]);
+
+  if (!chatId || initialMessages === null) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-600">Loading chat…</div>
+    );
+  }
+
+  return <ChatSession chatId={chatId} initialMessages={initialMessages} />;
 }
