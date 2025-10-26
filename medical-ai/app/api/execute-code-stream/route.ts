@@ -118,6 +118,127 @@ const tools = {
       };
     },
   }),
+  
+  displayBarChart: tool({
+    description: 'Display data as a bar chart. Use for comparing quantities across categories, showing distributions, or visualizing grouped data.',
+    inputSchema: z.object({
+      labels: z.array(z.string()).describe('X-axis labels for each bar or group of bars'),
+      datasets: z.array(z.object({
+        label: z.string().describe('Label for this dataset in the legend'),
+        data: z.array(z.number()).describe('Numeric values for each bar'),
+        backgroundColor: z.union([z.string(), z.array(z.string())]).optional()
+          .describe('Background color(s) for the bars'),
+        borderColor: z.union([z.string(), z.array(z.string())]).optional()
+          .describe('Border color(s) for the bars'),
+      })).describe('One or more datasets to display'),
+      title: z.string().optional().describe('Chart title'),
+      description: z.string().optional().describe('Chart description'),
+      stacked: z.boolean().optional().default(false)
+        .describe('Stack bars on top of each other'),
+      horizontal: z.boolean().optional().default(false)
+        .describe('Display as horizontal bar chart'),
+    }),
+    execute: async ({ labels, datasets, title, description, stacked, horizontal }) => {
+      return {
+        success: true,
+        type: 'bar' as const,
+        data: { labels, datasets },
+        title,
+        description,
+        config: { stacked, horizontal },
+      };
+    },
+  }),
+  
+  displayPieChart: tool({
+    description: 'Display data as a pie chart. Use for showing proportions, percentages, or parts of a whole.',
+    inputSchema: z.object({
+      labels: z.array(z.string()).describe('Labels for each slice of the pie'),
+      data: z.array(z.number()).describe('Numeric values for each slice'),
+      title: z.string().optional().describe('Chart title'),
+      description: z.string().optional().describe('Chart description'),
+      isDoughnut: z.boolean().optional().default(false)
+        .describe('Display as doughnut chart instead of pie'),
+      backgroundColor: z.array(z.string()).optional()
+        .describe('Background colors for each slice'),
+    }),
+    execute: async ({ labels, data, title, description, isDoughnut, backgroundColor }) => {
+      return {
+        success: true,
+        type: 'pie' as const,
+        data: { 
+          labels, 
+          datasets: [{
+            data,
+            backgroundColor,
+          }],
+        },
+        title,
+        description,
+        config: { isDoughnut },
+      };
+    },
+  }),
+  
+  displayLineChart: tool({
+    description: 'Display data as a line chart. Use for showing trends over time, continuous data, or relationships between variables.',
+    inputSchema: z.object({
+      labels: z.array(z.string()).describe('X-axis labels (e.g., time points, categories)'),
+      datasets: z.array(z.object({
+        label: z.string().describe('Label for this line in the legend'),
+        data: z.array(z.number()).describe('Y-axis values for each point'),
+        borderColor: z.string().optional().describe('Color of the line'),
+        backgroundColor: z.string().optional().describe('Fill color under the line'),
+        tension: z.number().min(0).max(1).optional()
+          .describe('Line smoothness (0 for straight lines, 0.4 for smooth curves)'),
+      })).describe('One or more line datasets to display'),
+      title: z.string().optional().describe('Chart title'),
+      description: z.string().optional().describe('Chart description'),
+      smooth: z.boolean().optional().default(true)
+        .describe('Use smooth curves instead of straight lines'),
+      area: z.boolean().optional().default(false)
+        .describe('Fill area under the line'),
+    }),
+    execute: async ({ labels, datasets, title, description, smooth, area }) => {
+      return {
+        success: true,
+        type: 'line' as const,
+        data: { labels, datasets },
+        title,
+        description,
+        config: { smooth, area },
+      };
+    },
+  }),
+  
+  displayScatterChart: tool({
+    description: 'Display data as a scatter plot. Use for showing correlations, distributions in 2D space, or relationships between two numeric variables.',
+    inputSchema: z.object({
+      datasets: z.array(z.object({
+        label: z.string().describe('Label for this dataset in the legend'),
+        data: z.array(z.object({
+          x: z.number().describe('X-coordinate'),
+          y: z.number().describe('Y-coordinate'),
+        })).describe('Array of (x, y) coordinate pairs'),
+        backgroundColor: z.string().optional().describe('Color for the points'),
+        pointRadius: z.number().optional().describe('Size of the points'),
+      })).describe('One or more datasets of points to display'),
+      title: z.string().optional().describe('Chart title'),
+      description: z.string().optional().describe('Chart description'),
+      showTrendline: z.boolean().optional().default(false)
+        .describe('Display a linear trendline for the first dataset'),
+    }),
+    execute: async ({ datasets, title, description, showTrendline }) => {
+      return {
+        success: true,
+        type: 'scatter' as const,
+        data: { datasets },
+        title,
+        description,
+        config: { showTrendline },
+      };
+    },
+  }),
 } satisfies ToolSet;
 
 // Export types for the client
@@ -151,7 +272,36 @@ export async function POST(request: Request) {
 - Can load files from S3 using presigned URLs with requests library
 - never assume the structure of the data, always explore the data with executeCode first
 - if you are given an xpt file use pandas.read_sas like df = pd.read_sas("/content/adadas.xpt", format="xport")
+### XPT FILES:
+use code like the following to load an xpt file:
 
+import requests
+import pandas as pd
+import io
+
+url_1 = "<your url>"
+response = requests.get(url_1)
+content = response.content
+
+# Convert bytes to file-like object
+file_like = io.BytesIO(content)
+
+df = pd.read_sas(file_like, format="xport")
+
+print("\nFirst few rows of the data:")
+print(df.head())
+
+print("\nShape of the DataFrame (rows, columns):")
+print(df.shape)
+
+print("\nColumn names:")
+print(df.columns)
+
+print("\nData types of each column:")
+print(df.dtypes)
+
+print("\nSummary statistics:")
+print(df.describe())
 ### 2. displayTable
 - Creates beautifully formatted tables with borders and dividers
 - Use this for displaying structured data, comparisons, or any tabular information
@@ -159,6 +309,30 @@ export async function POST(request: Request) {
 - Ideal for presenting analysis results, comparisons between items, or data summaries
 - Supports captions and custom column alignments (left, center, right)
 - When you call this tool, DO NOT MAKE ANOTHER TABLE WITH MARKDOWN FORMAT
+
+### 3. displayBarChart
+- Creates interactive bar charts for comparing quantities across categories
+- Supports multiple datasets for grouped comparisons
+- Options: stacked bars, horizontal orientation
+- Perfect for comparing values, showing distributions, or visualizing categorical data
+
+### 4. displayPieChart
+- Creates pie or doughnut charts for showing proportions and percentages
+- Automatically calculates and displays percentages
+- Best for visualizing parts of a whole, market share, or composition data
+- Supports custom colors for each slice
+
+### 5. displayLineChart
+- Creates line charts for showing trends over time or continuous data
+- Supports multiple lines for comparing trends
+- Options: smooth curves, filled areas under lines
+- Ideal for time series data, growth trends, or continuous relationships
+
+### 6. displayScatterChart
+- Creates scatter plots for showing correlations and distributions
+- Supports multiple datasets with different colors
+- Optional trendline to visualize linear relationships
+- Perfect for exploring relationships between two numeric variables
 
 
 ## Important Notes:
@@ -171,12 +345,17 @@ IT IS VITAL THAT YOU EXPLORE THE DATA BEFORE YOU TRY TO RUN OPERATIONS ON IT. US
 - Instead, use these tools sequentially: first execute code to get data, then use displayTable to show results nicely
 
 ### Best Practices:
-1. When analyzing data: First execute Python code to process data, then use displayTable to present results
+1. When analyzing data: First execute Python code to process data, then use displayTable or chart tools to present results
 2. Always include print() statements in Python code for visibility
-3. Use displayTable for final presentation of structured results, comparisons, or summaries
-4. Break complex tasks into steps: data processing (executeCode) → presentation (displayTable)
-5. You can pass the output of one tool to the input of another tool, for example you can pass the output of executeCode to the input of displayTable
-6. When given a file with data, start by exploring the data with executeCode, seeing the first 5 rows of the data, the shape of the data, the columns of the data, the data types of the columns, the missing values in the data, the summary statistics of the data, etc. this is in the case of an xtp or csv file
+3. Use displayTable for tabular data, and chart tools for visual representations
+4. Break complex tasks into steps: data processing (executeCode) → visualization (charts/tables)
+5. You can pass the output of one tool to the input of another tool
+6. When given a file with data, start by exploring the data with executeCode
+7. Choose the right visualization:
+   - Bar charts: Comparing categories, showing distributions
+   - Pie charts: Showing proportions or percentages of a whole
+   - Line charts: Time series data, trends over time
+   - Scatter plots: Correlations, relationships between variables
 ### Example Workflow:
 1. User asks for data analysis
 2. Use executeCode to process data with Python (with print statements for intermediate results)
