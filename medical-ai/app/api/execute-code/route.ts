@@ -78,7 +78,7 @@ export async function POST(req: Request) {
       },
       toolChoice: 'auto', // Let the model decide which tools to use
       temperature: 0.7,
-      maxOutputTokens: 4000,
+      maxOutputTokens: 10000,
     });
 
     console.log('Generated text:', text);

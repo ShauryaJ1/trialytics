@@ -141,10 +141,26 @@ const tools = {
     execute: async ({ labels, datasets, title, description, stacked, horizontal }) => {
       // Generate a unique chart ID for referencing in reports
       const chartId = `bar_chart_${Date.now()}`;
+      
+      // Ensure labels are properly formatted
+      const validLabels = labels && labels.length > 0 
+        ? labels 
+        : datasets[0]?.data?.map((_, index) => `Item ${index + 1}`) || [];
+      
+      // Ensure datasets have proper labels
+      const validDatasets = datasets.map((dataset, index) => ({
+        ...dataset,
+        label: dataset.label || `Dataset ${index + 1}`,
+        data: dataset.data || [],
+      }));
+      
       return {
         success: true,
         type: 'bar' as const,
-        data: { labels, datasets },
+        data: { 
+          labels: validLabels, 
+          datasets: validDatasets 
+        },
         title,
         description,
         config: { stacked, horizontal },
@@ -167,14 +183,28 @@ const tools = {
     }),
     execute: async ({ labels, data, title, description, isDoughnut, backgroundColor }) => {
       const chartId = `pie_chart_${Date.now()}`;
+      
+      // Ensure labels are properly formatted
+      const validLabels = labels && labels.length > 0 
+        ? labels 
+        : data.map((_, index) => `Category ${index + 1}`);
+      
       return {
         success: true,
         type: 'pie' as const,
         data: { 
-          labels, 
+          labels: validLabels, 
           datasets: [{
-            data,
-            backgroundColor,
+            label: title || 'Dataset 1', // Add the required label property
+            data: data || [],
+            backgroundColor: backgroundColor || [
+              'rgba(255, 99, 132, 0.8)',
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(255, 206, 86, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(153, 102, 255, 0.8)',
+              'rgba(255, 159, 64, 0.8)',
+            ],
           }],
         },
         title,
@@ -206,10 +236,28 @@ const tools = {
     }),
     execute: async ({ labels, datasets, title, description, smooth, area }) => {
       const chartId = `line_chart_${Date.now()}`;
+      
+      // Ensure labels are properly formatted
+      const validLabels = labels && labels.length > 0 
+        ? labels 
+        : datasets[0]?.data?.map((_, index) => `Point ${index + 1}`) || [];
+      
+      // Ensure datasets have proper structure
+      const validDatasets = datasets.map((dataset, index) => ({
+        ...dataset,
+        label: dataset.label || `Series ${index + 1}`,
+        data: dataset.data || [],
+        tension: smooth ? (dataset.tension ?? 0.4) : 0,
+        fill: area ? 'origin' : false,
+      }));
+      
       return {
         success: true,
         type: 'line' as const,
-        data: { labels, datasets },
+        data: { 
+          labels: validLabels, 
+          datasets: validDatasets 
+        },
         title,
         description,
         config: { smooth, area },
@@ -237,10 +285,21 @@ const tools = {
     }),
     execute: async ({ datasets, title, description, showTrendline }) => {
       const chartId = `scatter_chart_${Date.now()}`;
+      
+      // Ensure datasets have proper structure for scatter charts
+      const validDatasets = datasets.map((dataset, index) => ({
+        ...dataset,
+        label: dataset.label || `Dataset ${index + 1}`,
+        data: dataset.data || [],
+        pointRadius: dataset.pointRadius ?? 5,
+      }));
+      
       return {
         success: true,
         type: 'scatter' as const,
-        data: { datasets },
+        data: { 
+          datasets: validDatasets 
+        },
         title,
         description,
         config: { showTrendline },
@@ -250,30 +309,70 @@ const tools = {
   }),
   
   generateMarkdownReport: tool({
-    description: 'Generate a comprehensive markdown report summarizing all analysis, visualizations, and findings. Call this at the END of your statistical analysis to create a downloadable report.',
+    description: `Generate a professional markdown report with visualizations. ALWAYS call this at the END of your analysis.
+
+REPORT STRUCTURE TEMPLATE:
+1. Executive Summary - Key findings in 2-3 sentences
+2. Data Overview - What data was analyzed
+3. Methodology - How the analysis was performed
+4. Results - Key findings with visualizations
+5. Statistical Analysis - Detailed statistics
+6. Visualizations - Charts with interpretations
+7. Conclusion - Summary and recommendations
+
+EXAMPLE SECTIONS FORMAT:
+{
+  title: "Clinical Trial Data Analysis Report",
+  executiveSummary: "Analysis of 30 patients reveals strong correlations between cardiovascular parameters. Heart rate shows 98% correlation with blood pressure measurements.",
+  sections: [
+    {
+      heading: "Data Overview",
+      content: "Analyzed medical records from 30 patients including vital signs, BMI, and blood pressure readings collected over 6 months.",
+      level: 2
+    },
+    {
+      heading: "Key Findings",
+      content: "### Statistical Summary\\n- Mean Heart Rate: 72 bpm\\n- Mean Systolic BP: 120 mmHg\\n\\n![bar_chart_123456789]\\n\\nThe bar chart above shows distribution of values...",
+      level: 2
+    }
+  ],
+  chartData: [
+    {
+      chartId: "bar_chart_123456789",
+      type: "bar",
+      data: { labels: [...], datasets: [...] },
+      title: "Patient Metrics Distribution"
+    }
+  ],
+  conclusion: "The analysis demonstrates significant relationships requiring further investigation.",
+  metadata: {
+    analysisType: "Correlation and Descriptive Statistics",
+    dataSource: "Medical CSV File"
+  }
+}`,
     inputSchema: z.object({
-      title: z.string().describe('Title of the report'),
+      title: z.string().describe('Professional report title (e.g., "Clinical Trial Statistical Analysis Report")'),
       sections: z.array(z.object({
-        heading: z.string().describe('Section heading'),
-        content: z.string().describe('Section content in markdown format. Reference charts using ![chart_id] placeholders where chart_id matches the chartId from chart tools.'),
+        heading: z.string().describe('Section heading (e.g., "Data Overview", "Methodology", "Results")'),
+        content: z.string().describe('Section content in markdown. Use ![chartId] to reference charts. Include interpretations after each chart reference.'),
         level: z.number().min(1).max(3).optional().default(2)
-          .describe('Heading level (1 for main heading, 2 for subheading, 3 for sub-subheading)'),
-      })).describe('Report sections in order'),
+          .describe('Heading level (2 for main sections, 3 for subsections)'),
+      })).describe('Report sections in order. MUST include: Data Overview, Methodology, Results, and Visualizations sections'),
       chartData: z.array(z.object({
-        chartId: z.string().describe('Unique ID of the chart'),
+        chartId: z.string().describe('The EXACT chartId returned from chart creation tools'),
         type: z.enum(['bar', 'pie', 'line', 'scatter']).describe('Type of chart'),
-        data: z.any().describe('Chart data object'),
+        data: z.any().describe('The EXACT data object returned from chart tools'),
         title: z.string().optional().describe('Chart title'),
-        config: z.any().optional().describe('Chart configuration'),
-      })).optional().describe('Chart data to embed in the report'),
+        config: z.any().optional().describe('The EXACT config object from chart tools'),
+      })).optional().describe('CRITICAL: Include ALL charts created during analysis. Copy chartId, data, and config EXACTLY as returned from chart tools'),
       executiveSummary: z.string().optional()
-        .describe('Executive summary or key findings at the beginning of the report'),
+        .describe('2-3 sentence executive summary highlighting the most important findings'),
       conclusion: z.string().optional()
-        .describe('Conclusions and recommendations at the end of the report'),
+        .describe('Concluding paragraph with key takeaways and recommendations'),
       metadata: z.object({
-        analysisType: z.string().optional().describe('Type of analysis performed'),
-        dataSource: z.string().optional().describe('Source of the data analyzed'),
-      }).optional().describe('Additional metadata for the report'),
+        analysisType: z.string().optional().describe('Type of analysis (e.g., "Descriptive Statistics", "Correlation Analysis")'),
+        dataSource: z.string().optional().describe('Source of data (e.g., "Patient Medical Records CSV")'),
+      }).optional().describe('Report metadata'),
     }),
     execute: async ({ title, sections, chartData, executiveSummary, conclusion, metadata }) => {
       // Build the markdown content
@@ -454,34 +553,65 @@ print(df.describe())
 - Creates a professional, downloadable markdown report with embedded visualizations
 - **CRITICAL**: You MUST include the \`chartData\` parameter with ALL charts you created
 - Track each chart's data when you create it and include it in the report
-- The report will render the actual charts, not just placeholders
-- Each chart tool returns a chartId and data - save these for the report
 
-**How to use:**
-1. When you create a chart, save its chartId, type, data, title, and config
-2. When calling generateMarkdownReport, include ALL chart data in the chartData array
-3. In your markdown content, you can reference charts with ![chart_id] if needed
+**COMPLETE EXAMPLE WORKFLOW:**
+\`\`\`python
+# Step 1: Create a bar chart and SAVE its response
+barResponse = displayBarChart({
+  labels: ["Jan", "Feb", "Mar"],
+  datasets: [{data: [10, 20, 30]}],
+  title: "Monthly Sales"
+})
+# barResponse contains: { chartId: "bar_chart_123456", type: "bar", data: {...}, ... }
 
-**Example chartData format:**
-\`\`\`json
-chartData: [
-  {
-    chartId: "bar_chart_123",
-    type: "bar",
-    data: { labels: [...], datasets: [...] },
-    title: "Sales by Month",
-    config: { stacked: false, horizontal: false }
-  },
-  // ... more charts
-]
+# Step 2: Create a pie chart and SAVE its response  
+pieResponse = displayPieChart({
+  labels: ["Product A", "Product B"],
+  data: [60, 40],
+  title: "Market Share"
+})
+# pieResponse contains: { chartId: "pie_chart_789012", type: "pie", data: {...}, ... }
+
+# Step 3: Generate report with ALL chart data
+generateMarkdownReport({
+  title: "Monthly Sales Analysis Report",
+  executiveSummary: "Sales increased 200% from January to March, with Product A dominating market share at 60%.",
+  sections: [
+    {
+      heading: "Data Overview",
+      content: "Analysis of Q1 2024 sales data from 3 months of transactions.",
+      level: 2
+    },
+    {
+      heading: "Monthly Sales Trend",
+      content: "Sales showed consistent growth:\\n\\n![bar_chart_123456]\\n\\nThe bar chart demonstrates a clear upward trend...",
+      level: 2
+    },
+    {
+      heading: "Product Distribution",
+      content: "Market share analysis:\\n\\n![pie_chart_789012]\\n\\nProduct A dominates with 60% market share...",
+      level: 2
+    }
+  ],
+  chartData: [
+    barResponse,  // Include the COMPLETE response from bar chart
+    pieResponse   // Include the COMPLETE response from pie chart
+  ],
+  conclusion: "Strong growth trajectory suggests continued expansion in Q2.",
+  metadata: {
+    analysisType: "Sales Performance Analysis",
+    dataSource: "Q1 2024 Transaction Data"
+  }
+})
 \`\`\`
 
-- ALWAYS include:
-  - Executive summary of key findings
-  - Methodology section explaining the analysis approach  
-  - Results section with charts and interpretations
-  - Conclusion with actionable insights
-  - ALL chart data in the chartData parameter
+**REQUIRED REPORT SECTIONS:**
+1. **Data Overview** - What data was analyzed
+2. **Methodology** - How the analysis was performed
+3. **Results/Findings** - Key discoveries with charts
+4. **Statistical Details** - Specific numbers and correlations
+5. **Visualizations** - Charts with interpretations
+6. **Conclusion** - Summary and next steps
 
 ## 📋 CRITICAL GUIDELINES
 
@@ -565,14 +695,59 @@ with pdfplumber.open(io.BytesIO(response.content)) as pdf:
 2. Trying to create charts directly ← FAILS!
 3. Assuming data structure without exploration ← ERRORS!
 
+## 🏥 MEDICAL DATA REPORT TEMPLATE:
+When analyzing medical/clinical data, use this structure:
+
+\`\`\`javascript
+generateMarkdownReport({
+  title: "Clinical Trial Statistical Analysis Report",
+  executiveSummary: "Analysis of [N] patients reveals [key finding 1] and [key finding 2]. Statistical significance found in [metric].",
+  sections: [
+    {
+      heading: "Study Overview",
+      content: "- **Study Type**: [Descriptive/Comparative/Correlation]\\n- **Sample Size**: [N] patients\\n- **Duration**: [timeframe]\\n- **Parameters Analyzed**: [list metrics]",
+      level: 2
+    },
+    {
+      heading: "Patient Demographics",
+      content: "### Basic Statistics\\n- Mean Age: [X] ± [SD]\\n- Gender Distribution: [M/F]\\n- BMI Range: [min-max]\\n\\n![bar_chart_demographics]",
+      level: 2
+    },
+    {
+      heading: "Clinical Measurements",
+      content: "### Vital Signs Analysis\\n\\n![line_chart_vitals]\\n\\nTrends show [interpretation]...",
+      level: 2
+    },
+    {
+      heading: "Statistical Correlations",
+      content: "### Key Correlations\\n- Heart Rate vs BP: r=[value], p=[value]\\n- BMI vs Glucose: r=[value], p=[value]\\n\\n![scatter_chart_correlation]",
+      level: 2
+    },
+    {
+      heading: "Safety Analysis",
+      content: "### Adverse Events\\n- Total Events: [N]\\n- Severity Distribution:\\n\\n![pie_chart_severity]",
+      level: 2
+    }
+  ],
+  chartData: [/* ALL chart responses */],
+  conclusion: "The analysis confirms [main finding]. Further investigation recommended for [specific area].",
+  metadata: {
+    analysisType: "Clinical Trial Statistical Analysis",
+    dataSource: "[Study name/file]"
+  }
+})
+\`\`\`
+
 ## 🔑 KEY REMINDERS:
 - **executeCode MUST come before ANY chart tool**
 - **ALWAYS print() data in executeCode - no print = no output**
 - **Charts need data as Python lists from executeCode**
+- **Save EVERY chart response to include in the final report**
+- **Use the report template above for medical data**
 - **Explore data structure before processing**
 - **Tools work sequentially, not nested**
 
-Remember: Success depends on proper tool ordering. executeCode prepares the data, then visualization tools display it.`
+Remember: Success depends on proper tool ordering. executeCode prepares the data, then visualization tools display it. ALWAYS end with generateMarkdownReport including all chartData!`
     },
     ...convertToModelMessages(messages)
   ];
@@ -582,7 +757,7 @@ Remember: Success depends on proper tool ordering. executeCode prepares the data
     messages: enhancedMessages,
     tools,
     temperature: 0.7,
-    maxOutputTokens: 4000,
+    maxOutputTokens: 10000,
   });
 
   return result.toUIMessageStreamResponse();
