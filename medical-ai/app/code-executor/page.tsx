@@ -1,32 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function CodeExecutor() {
   const [prompt, setPrompt] = useState('');
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [serverStatus, setServerStatus] = useState<any>(null);
-  const [checkingServer, setCheckingServer] = useState(false);
-
-  // Check server status on mount
-  useEffect(() => {
-    checkServerStatus();
-  }, []);
-
-  // Check server status
-  const checkServerStatus = async () => {
-    setCheckingServer(true);
-    try {
-      const res = await fetch('/api/execute-code');
-      const data = await res.json();
-      setServerStatus(data);
-    } catch (error) {
-      setServerStatus({ available: false, error: 'Failed to check server status' });
-    } finally {
-      setCheckingServer(false);
-    }
-  };
 
   // Execute code with AI assistance
   const executeWithAI = async () => {
@@ -73,46 +52,6 @@ export default function CodeExecutor() {
           This interface allows the AI agent to execute Python code in a sandboxed Modal environment.
           The agent has access to tools for executing code, analyzing it, and retrieving examples.
         </p>
-        
-        {/* Server Status */}
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold mb-1">Modal Server Status</h3>
-              <p className="text-sm text-gray-600">
-                {serverStatus?.modalServerUrl || 'Modal Server'}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {checkingServer ? (
-                <span className="text-gray-500">Checking...</span>
-              ) : (
-                <>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    serverStatus?.available 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {serverStatus?.available ? '● Online' : '● Offline'}
-                  </span>
-                  <button
-                    onClick={checkServerStatus}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
-                  >
-                    Refresh
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-          {serverStatus?.health && (
-            <div className="mt-2 text-xs text-gray-600">
-              <p>Status: {serverStatus.health.status}</p>
-              <p>Modal Connected: {serverStatus.health.modal_connected ? 'Yes' : 'No'}</p>
-            </div>
-          )}
-        </div>
-
         {/* Example Prompts */}
         <div className="mb-6">
           <h3 className="text-sm font-medium text-gray-700 mb-2">Example Prompts</h3>
@@ -147,9 +86,9 @@ export default function CodeExecutor() {
         {/* Execute Button */}
         <button
           onClick={executeWithAI}
-          disabled={loading || !prompt || !serverStatus?.available}
+          disabled={loading || !prompt}
           className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-            loading || !prompt || !serverStatus?.available
+            loading || !prompt
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}

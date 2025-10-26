@@ -221,8 +221,6 @@ function TableDisplay({
 
 export default function CodeStreamChat() {
   const [input, setInput] = useState('');
-  const [serverStatus, setServerStatus] = useState<any>(null);
-  const [checkingServer, setCheckingServer] = useState(false);
   
   const { messages, sendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
@@ -230,24 +228,6 @@ export default function CodeStreamChat() {
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
-
-  // Check server status on mount
-  useEffect(() => {
-    checkServerStatus();
-  }, []);
-
-  const checkServerStatus = async () => {
-    setCheckingServer(true);
-    try {
-      const res = await fetch('/api/execute-code-stream');
-      const data = await res.json();
-      setServerStatus(data);
-    } catch (error) {
-      setServerStatus({ available: false, error: 'Failed to check server status' });
-    } finally {
-      setCheckingServer(false);
-    }
-  };
 
   // Example prompts
   const examplePrompts = [
@@ -268,30 +248,6 @@ export default function CodeStreamChat() {
           <p className="text-sm text-gray-600 mt-1">
             AI-powered Python code execution with real-time streaming and visual feedback
           </p>
-          
-          {/* Server Status */}
-          <div className="mt-4 flex items-center gap-3">
-            <span className="text-sm text-gray-600">Modal Server:</span>
-            {checkingServer ? (
-              <span className="text-sm text-gray-500">Checking...</span>
-            ) : (
-              <>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  serverStatus?.available 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {serverStatus?.available ? '● Online' : '● Offline'}
-                </span>
-                <button
-                  onClick={checkServerStatus}
-                  className="px-2 py-0.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
-                >
-                  Refresh
-                </button>
-              </>
-            )}
-          </div>
         </div>
       </div>
 
@@ -489,12 +445,12 @@ export default function CodeStreamChat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask me to write and execute Python code..."
-              disabled={status === 'streaming' || !serverStatus?.available}
+              disabled={status === 'streaming'}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
             <button
               type="submit"
-              disabled={!input.trim() || status === 'streaming' || !serverStatus?.available}
+              disabled={!input.trim() || status === 'streaming'}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               {status === 'streaming' ? (
@@ -507,12 +463,6 @@ export default function CodeStreamChat() {
               )}
             </button>
           </form>
-          
-          {!serverStatus?.available && (
-            <p className="mt-2 text-xs text-red-600">
-              ⚠️ Modal server is offline. Code execution will not work.
-            </p>
-          )}
         </div>
       </div>
     </div>

@@ -153,6 +153,10 @@ export async function POST(request: Request) {
 - Provides proper column alignment and visual separation
 - Ideal for presenting analysis results, comparisons between items, or data summaries
 - Supports captions and custom column alignments (left, center, right)
+- You dont need to display this again, the user will be able to see the table in the UI
+- Once you call this tool, you do not need to present this table again, it will already be displayed
+- When you call this tool, DO NOT MAKE ANOTHER TABLE WITH MARKDOWN FORMAT
+
 
 ## Important Notes:
 
@@ -189,45 +193,3 @@ Remember: The tools enhance your capabilities but work independently. Plan your 
   return result.toUIMessageStreamResponse();
 }
 
-// Health check endpoint
-export async function GET() {
-  try {
-    console.log('Checking Modal server health...');
-    
-    const response = await fetch(`${process.env.MODAL_BASE_URL || 'cooked'}/health`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return Response.json(
-        {
-          available: false,
-          error: `Server returned ${response.status}: ${errorText}`,
-        },
-        { status: 503 }
-      );
-    }
-
-    const health = await response.json();
-    console.log('Modal server health:', health);
-    
-    return Response.json({
-      available: true,
-      modalServerUrl: process.env.MODAL_BASE_URL || 'cooked',
-      health,
-    });
-  } catch (error) {
-    console.error('Failed to check Modal server:', error);
-    return Response.json(
-      {
-        available: false,
-        error: error instanceof Error ? error.message : 'Failed to connect to Modal server',
-      },
-      { status: 503 }
-    );
-  }
-}
