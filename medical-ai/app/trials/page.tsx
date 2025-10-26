@@ -68,18 +68,18 @@ export default function TrialsPage() {
                 </div>
               </div>
               
-              <Link 
-                href="/chat"
-                className="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
-              >
+                     <Link 
+                       href="/code-stream"
+                       className="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+                     >
                 <MessageCircle className="w-4 h-4" />
                 Continue Chat
               </Link>
             </div>
           ))}
           
-          {/* Add New Trial Placeholder */}
-          <Link href="/chat">
+                 {/* Add New Trial Placeholder */}
+                 <Link href="/code-stream">
             <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center hover:border-gray-400 transition-all duration-300 smooth-hover cursor-pointer animate-scale-in">
               <div className="text-center">
                 <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">

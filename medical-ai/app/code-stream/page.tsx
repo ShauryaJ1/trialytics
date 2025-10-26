@@ -6,6 +6,7 @@ import {
   lastAssistantMessageIsCompleteWithToolCalls,
 } from 'ai';
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -25,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowUp } from 'lucide-react';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -224,7 +225,7 @@ function TableDisplay({
 export default function CodeStreamChat() {
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [showFilePanel, setShowFilePanel] = useState(false);
+  const [showFilePanel, setShowFilePanel] = useState(true);
   
   const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
@@ -312,20 +313,27 @@ User request: ${message.text}`;
       ];
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50 font-sans page-transition">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800">Code Execution with Streaming</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            AI-powered Python code execution with real-time streaming and visual feedback
-          </p>
+      <div className="bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-5xl font-bold text-teal-900">Analysis Assistant.</h1>
+            
+            <Link 
+              href="/trials"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowUp className="w-4 h-4" />
+              Back to Trials
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* File Upload Panel */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-6 py-3">
+      <div className="bg-gray-50 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-8 py-3">
           <button
             onClick={() => setShowFilePanel(!showFilePanel)}
             className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
@@ -358,33 +366,19 @@ User request: ${message.text}`;
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 px-8 py-8 overflow-hidden transition-all duration-300">
+        <div className="max-w-7xl mx-auto space-y-5 h-full">
           {messages.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-6">
-                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <div className="text-center py-16">
+              <div className="text-gray-400 mb-8">
+                <svg className="w-20 h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to execute code</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Ask me to write and execute Python code, or try one of the examples below
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Ready to Assist</h3>
+              <p className="text-sm text-gray-900 mb-8 max-w-md mx-auto leading-relaxed">
+                Upload medical documents above or ask questions to begin your analysis
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {examplePrompts.slice(0, 3).map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setInput(prompt);
-                      sendMessage({ text: prompt });
-                    }}
-                    className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
           
@@ -520,21 +514,8 @@ User request: ${message.text}`;
       </div>
 
       {/* Input */}
-      <div className="border-t bg-white px-6 py-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Example prompts */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {examplePrompts.map((prompt, i) => (
-              <button
-                key={i}
-                onClick={() => setInput(prompt)}
-                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-              >
-                {prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
-              </button>
-            ))}
-          </div>
-          
+      <div className="border-t border-gray-200 bg-gray-50 px-8 py-6">
+        <div className="max-w-7xl mx-auto">
           {/* Input form */}
           <form
             onSubmit={(e) => {
@@ -544,20 +525,20 @@ User request: ${message.text}`;
                 setInput('');
               }
             }}
-            className="flex gap-3"
+            className="flex gap-3 transition-all duration-300"
           >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me to write and execute Python code..."
+              placeholder="Ask a question or describe what you need analyzed..."
               disabled={status === 'streaming'}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              className="flex-1 px-5 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900 placeholder:text-gray-500 transition-all"
             />
             <button
               type="submit"
               disabled={!input.trim() || status === 'streaming'}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="px-8 py-3.5 bg-teal-600 text-white rounded-xl hover:bg-teal-600/90 disabled:bg-gray-200 disabled:cursor-not-allowed transition-all font-medium shadow-sm hover:shadow-md"
             >
               {status === 'streaming' ? (
                 <div className="flex items-center gap-2">
