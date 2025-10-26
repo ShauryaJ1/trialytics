@@ -5,7 +5,8 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from 'ai';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -15,19 +16,8 @@ import {
 import { Response } from '@/components/ai-elements/response';
 import { CodeBlock, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import { MessageWithAvatar } from './message-component';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
-import { ChevronRight, ChevronDown, ArrowDown } from 'lucide-react';
-import { ChartDisplay } from './chart-components';
-import { MarkdownReport } from './report-component';
+import { ArrowUp, ChevronRight, ChevronDown, CheckCircle2, XCircle, Clock } from 'lucide-react';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -82,7 +72,6 @@ function parseStreamingReasoning(text: string): {
   return { parts };
 }
 
-
 // Visual component for code execution results
 function CodeExecutionResult({ 
   result, 
@@ -100,53 +89,54 @@ function CodeExecutionResult({
   const displayCode = result.code || code;
   
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {displayCode && (
         <div>
-          <div className="text-sm font-medium text-gray-600 mb-2">Code:</div>
+          <div className="text-sm font-medium text-gray-600 mb-3">Code:</div>
           <CodeBlock code={displayCode} language="python" showLineNumbers={true}>
             <CodeBlockCopyButton />
           </CodeBlock>
         </div>
       )}
       
-      <div className={`rounded-lg p-4 ${
+      <div className={`rounded-xl p-5 border ${
         result.success 
-          ? 'bg-green-50 border-2 border-green-200' 
-          : 'bg-red-50 border-2 border-red-200'
+          ? 'bg-white border-gray-200 shadow-sm' 
+          : 'bg-white border-red-200 shadow-sm'
       }`}>
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-3 mb-3">
           {result.success ? (
             <>
-              <span className="text-green-600">✓</span>
-              <span className="font-medium text-green-800">Execution Successful</span>
+              <CheckCircle2 className="w-5 h-5 text-gray-900" strokeWidth={2} />
+              <span className="font-medium text-gray-900">Execution Successful</span>
             </>
           ) : (
             <>
-              <span className="text-red-600">✗</span>
+              <XCircle className="w-5 h-5 text-red-600" strokeWidth={2} />
               <span className="font-medium text-red-800">Execution Failed</span>
             </>
           )}
           {result.execution_time && (
-            <span className="text-sm text-gray-600 ml-auto">
+            <span className="text-sm text-gray-900 ml-auto flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
               {result.execution_time.toFixed(2)}s
             </span>
           )}
         </div>
         
         {result.output && result.output.trim() && (
-          <div className="mt-3">
-            <div className="text-sm font-medium text-gray-700 mb-1">Output:</div>
-            <CodeBlock code={result.output} language="text" showLineNumbers={false}>
-              <CodeBlockCopyButton />
-            </CodeBlock>
+          <div className="mt-4">
+            <div className="text-sm font-medium text-gray-600 mb-2">Output:</div>
+            <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-x-auto text-sm font-mono text-gray-900">
+              {result.output}
+            </pre>
           </div>
         )}
         
         {result.error && (
-          <div className="mt-3">
-            <div className="text-sm font-medium text-red-700 mb-1">Error:</div>
-            <pre className="bg-red-950 text-red-200 p-3 rounded border border-red-800 overflow-x-auto text-sm font-mono">
+          <div className="mt-4">
+            <div className="text-sm font-medium text-red-700 mb-2">Error:</div>
+            <pre className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-700 text-sm overflow-x-auto font-mono">
               {result.error}
             </pre>
           </div>
@@ -156,81 +146,10 @@ function CodeExecutionResult({
   );
 }
 
-// Visual component for table display
-function TableDisplay({ 
-  result 
-}: { 
-  result: any; // Using any to avoid type conflicts with the tool output
-}) {
-  if (!result.success || !result.headers || !result.rows) {
-    return (
-      <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-        <div className="text-red-800 font-medium">Table Error</div>
-        <div className="text-sm text-red-600 mt-1">{result.error || 'Invalid table data'}</div>
-      </div>
-    );
-  }
-
-  const getAlignmentClass = (align?: 'left' | 'center' | 'right') => {
-    switch (align) {
-      case 'center': return 'text-center';
-      case 'right': return 'text-right';
-      default: return 'text-left';
-    }
-  };
-
-  return (
-    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-medium text-blue-900">Data Table</div>
-        <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
-          {result.rowCount} rows × {result.columnCount} columns
-        </span>
-      </div>
-      
-      <div className="bg-white rounded border border-gray-300 overflow-hidden">
-        <Table className="border-collapse">
-          {result.caption && <TableCaption className="text-gray-600 px-4 py-2">{result.caption}</TableCaption>}
-          <TableHeader>
-            <TableRow className="bg-gray-100 border-b-2 border-gray-300">
-              {result.headers.map((header: string, idx: number) => (
-                <TableHead 
-                  key={idx} 
-                  className={`border-r border-gray-300 last:border-r-0 font-semibold text-gray-900 px-4 py-2 ${getAlignmentClass(result.alignment?.[idx])}`}
-                >
-                  {header}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {result.rows.map((row: string[], rowIdx: number) => (
-              <TableRow key={rowIdx} className="border-b border-gray-200 hover:bg-gray-50">
-                {row.map((cell: string, cellIdx: number) => (
-                  <TableCell 
-                    key={cellIdx} 
-                    className={`border-r border-gray-200 last:border-r-0 px-4 py-2 ${getAlignmentClass(result.alignment?.[cellIdx])}`}
-                  >
-                    {cell}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
-
 export default function CodeStreamChat() {
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [showFilePanel, setShowFilePanel] = useState(false);
-  const [chartImages, setChartImages] = useState<{ [key: string]: string }>({});
-  const [autoScroll, setAutoScroll] = useState(true);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showFilePanel, setShowFilePanel] = useState(true);
   
   const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
@@ -240,33 +159,6 @@ export default function CodeStreamChat() {
   });
 
   // Wrap sendMessage to inject file context
-  // Handle scroll events to detect manual scrolling
-  const handleScroll = () => {
-    if (!messagesContainerRef.current) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    
-    // Enable auto-scroll when user scrolls near bottom, disable when scrolling up
-    setAutoScroll(isNearBottom);
-  };
-
-  // Auto-scroll to bottom when messages change (if autoScroll is enabled)
-  useEffect(() => {
-    if (autoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, autoScroll]);
-
-  // Auto-scroll when streaming starts or when user sends a message
-  useEffect(() => {
-    if (status === 'streaming' && messagesEndRef.current) {
-      // Always scroll to bottom when user sends a new message
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      setAutoScroll(true);
-    }
-  }, [status]);
-
   const sendMessage = (message: { text: string }) => {
     if (uploadedFiles.length > 0) {
       // Create file context system message
@@ -325,20 +217,28 @@ User request: ${message.text}`;
     return originalSendMessage(message);
   };
 
-  // Example prompts - dynamic based on whether files are uploaded
-
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50 font-sans page-transition">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
-        <div className="max-w-4xl mx-auto">
-          
-        </div>
-      </div>
+      <div className="bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-5xl font-bold text-teal-900">Analysis Assistant.</h1>
+            
+            <Link 
+              href="/trials"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowUp className="w-4 h-4" />
+              Back to Trials
+            </Link>
+          </div>
+         </div>
+       </div>
 
       {/* File Upload Panel */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-6 py-3">
+      <div className="bg-gray-50 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-8 py-3">
           <button
             onClick={() => setShowFilePanel(!showFilePanel)}
             className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
@@ -371,54 +271,49 @@ User request: ${message.text}`;
       </div>
 
       {/* Messages */}
-      <div 
-        className="flex-1 overflow-y-auto px-6 py-6" 
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-      >
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 px-8 py-8 overflow-hidden transition-all duration-300">
+        <div className="max-w-7xl mx-auto space-y-5 h-full">
           {messages.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-6">
-                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <div className="text-center py-16">
+              <div className="text-gray-400 mb-8">
+                <svg className="w-20 h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to help</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Ask me to help with your clinical trial
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Ready to Assist</h3>
+              <p className="text-sm text-gray-900 mb-8 max-w-md mx-auto leading-relaxed">
+                Upload medical documents above or ask questions to begin your analysis
               </p>
-              
             </div>
           )}
-          
+
           {messages.map((message) => (
             <div key={message.id} className="animate-in fade-in duration-500">
-              <MessageWithAvatar 
-                from={message.role as 'user' | 'assistant'} 
+              <MessageWithAvatar
+                from={message.role as 'user' | 'assistant'}
                 variant="flat"
                 name={message.role === 'user' ? 'You' : 'Assistant'}
               >
                 {/* Render message parts */}
                 {message.parts?.map((part, i) => {
                   const key = `${message.id}-${i}`;
-                  
+                 
                   switch (part.type) {
                     case 'text':
                       // Parse text for reasoning blocks
                       const { parts } = parseStreamingReasoning(part.text || '');
-                      const isCurrentlyStreaming = i === (message.parts?.length ?? 0) - 1 && 
+                      const isCurrentlyStreaming = i === (message.parts?.length ?? 0) - 1 &&
                                                    message.role === 'assistant' && status === 'streaming';
                       
                       return (
                         <div key={key}>
                           {parts.map((textPart, idx) => {
                             if (textPart.type === 'reasoning') {
-                              const isThisPartStreaming = isCurrentlyStreaming && 
-                                                         idx === parts.length - 1 && 
+                              const isThisPartStreaming = isCurrentlyStreaming &&
+                                                         idx === parts.length - 1 &&
                                                          !textPart.isComplete;
                               return (
-                                <Reasoning 
+                                <Reasoning
                                   key={`reasoning-${idx}`}
                                   isStreaming={isThisPartStreaming}
                                   className="mb-3"
@@ -430,143 +325,53 @@ User request: ${message.text}`;
                                 </Reasoning>
                               );
                             } else if (textPart.content.trim()) {
-                              // Remove code blocks from text since they'll be shown in tool results
-                              const cleanedContent = textPart.content
-                                .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-                                .replace(/^\s*Output:?\s*$/gm, '') // Remove "Output:" lines
-                                .replace(/^\s*Code:?\s*$/gm, '') // Remove "Code:" lines
-                                .trim();
-                              
-                              if (cleanedContent) {
-                                return (
-                                  <Response key={`text-${idx}`}>
-                                    {cleanedContent}
-                                  </Response>
-                                );
-                              }
-                              return null;
+                              return (
+                                <Response key={`text-${idx}`}>
+                                  {textPart.content}
+                                </Response>
+                              );
                             }
                             return null;
                           })}
                         </div>
                       );
-                        
-                        case 'tool-executeCode':
-                          return (
-                            <div key={part.toolCallId} className="mt-3">
-                              {part.state === 'input-streaming' && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
-                                  <span className="text-sm">Executing code...</span>
-                                </div>
-                              )}
-                              {part.state === 'output-available' && part.output && (
-                                <CodeExecutionResult 
-                                  result={part.output} 
-                                  code={part.input?.code}
-                                />
-                              )}
-                            </div>
-                          );
-                        
-                        case 'tool-displayTable':
-                          return (
-                            <div key={part.toolCallId} className="mt-3">
-                              {part.state === 'input-streaming' && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
-                                  <span className="text-sm">Preparing table...</span>
-                                </div>
-                              )}
-                              {part.state === 'output-available' && part.output && (
-                                <TableDisplay result={part.output} />
-                              )}
-                            </div>
-                          );
-                        
-                        case 'tool-displayBarChart':
-                        case 'tool-displayPieChart':
-                        case 'tool-displayLineChart':
-                        case 'tool-displayScatterChart':
-                          const chartType = part.type.replace('tool-display', '').replace('Chart', '').toLowerCase() as 'bar' | 'pie' | 'line' | 'scatter';
-                          return (
-                            <div key={part.toolCallId} className="mt-3">
-                              {part.state === 'input-streaming' && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
-                                  <span className="text-sm">Preparing {chartType} chart...</span>
-                                </div>
-                              )}
-                              {part.state === 'output-available' && part.output && part.output.success && (
-                                <ChartDisplay
-                                  type={part.output.type || chartType}
-                                  data={part.output.data}
-                                  title={part.output.title}
-                                  description={part.output.description}
-                                  config={part.output.config}
-                                  onBase64Generated={(base64) => {
-                                    // Store base64 image for report references
-                                    if (part.output.chartId) {
-                                      setChartImages(prev => ({ ...prev, [part.output.chartId]: base64 }));
-                                    }
-                                  }}
-                                />
-                              )}
-                              {part.state === 'output-available' && part.output && !part.output.success && (
-                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                                  <div className="text-red-800 font-medium">Chart Error</div>
-                                  <div className="text-sm text-red-600 mt-1">Failed to create chart</div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        
-                        case 'tool-generateMarkdownReport':
-                          return (
-                            <div key={part.toolCallId} className="mt-3">
-                              {part.state === 'input-streaming' && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
-                                  <span className="text-sm">Generating report...</span>
-                                </div>
-                              )}
-                              {part.state === 'output-available' && part.output && part.output.success && (
-                                <MarkdownReport
-                                  content={part.output.content}
-                                  title={part.output.title}
-                                  description={part.output.description}
-                                  chartData={part.output.chartData}
-                                  images={chartImages}
-                                  metadata={part.output.metadata}
-                                />
-                              )}
-                              {part.state === 'output-available' && part.output && !part.output.success && (
-                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                                  <div className="text-red-800 font-medium">Report Generation Error</div>
-                                  <div className="text-sm text-red-600 mt-1">Failed to generate report</div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        
-                        default:
-                          // Handle any other tool types generically
-                          if (part.type?.startsWith('tool-')) {
-                            const toolPart = part as any;
-                            return (
-                              <div key={toolPart.toolCallId || key} className="mt-3 p-3 bg-gray-100 rounded">
-                                <div className="text-xs text-gray-600">
-                                  Tool: {part.type.replace('tool-', '')}
-                                </div>
-                                {toolPart.state === 'output-available' && (
-                                  <pre className="text-xs mt-2">
-                                    {JSON.stringify(toolPart.output, null, 2)}
-                                  </pre>
-                                )}
+                      
+                      case 'tool-executeCode':
+                        return (
+                          <div key={part.toolCallId} className="mt-4">
+                            {part.state === 'input-streaming' && (
+                              <div className="flex items-center gap-3 text-gray-900">
+                                <div className="animate-spin h-4 w-4 border-2 border-gray-200 border-t-transparent rounded-full"></div>
+                                <span className="text-sm">Executing code...</span>
                               </div>
-                            );
-                          }
-                          return null;
+                            )}
+                            {part.state === 'output-available' && part.output && (
+                              <CodeExecutionResult
+                                result={part.output}
+                                code={part.input?.code}
+                              />
+                            )}
+                          </div>
+                        );
+
+                      default:
+                        // Handle any other tool types generically
+                        if (part.type?.startsWith('tool-')) {
+                          const toolPart = part as any;
+                          return (
+                            <div key={toolPart.toolCallId || key} className="mt-4 p-4 bg-white border border-gray-200 rounded-xl">
+                              <div className="text-xs text-gray-900 font-medium">
+                                Tool: {part.type.replace('tool-', '')}
+                              </div>
+                              {toolPart.state === 'output-available' && (
+                                <pre className="text-xs mt-3 text-gray-600 font-mono">
+                                  {JSON.stringify(toolPart.output, null, 2)}
+                                </pre>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
                   }
                 })}
               </MessageWithAvatar>
@@ -575,43 +380,22 @@ User request: ${message.text}`;
           
           {status === 'streaming' && messages[messages.length - 1]?.role !== 'assistant' && (
             <MessageWithAvatar from="assistant" variant="flat" name="Assistant">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1.5">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
-                <span className="text-sm text-gray-500">Thinking...</span>
+                <span className="text-sm text-gray-900">Processing...</span>
               </div>
             </MessageWithAvatar>
           )}
-          {/* Scroll anchor - this empty div is used to scroll to */}
-          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Scroll to bottom button */}
-      {!autoScroll && messages.length > 0 && (
-        <div className="absolute bottom-24 right-8 z-10">
-          <button
-            onClick={() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-              setAutoScroll(true);
-            }}
-            className="bg-white shadow-lg border border-gray-200 rounded-full p-3 hover:bg-gray-50 transition-colors group"
-            title="Scroll to bottom"
-          >
-            <ArrowDown className="h-5 w-5 text-gray-600 group-hover:text-gray-900" />
-          </button>
-        </div>
-      )}
-
       {/* Input */}
-      <div className="border-t bg-white px-6 py-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Example prompts */}
-         
-          
+      <div className="border-t border-gray-200 bg-gray-50 px-8 py-6">
+        <div className="max-w-7xl mx-auto">
           {/* Input form */}
           <form
             onSubmit={(e) => {
@@ -621,20 +405,20 @@ User request: ${message.text}`;
                 setInput('');
               }
             }}
-            className="flex gap-3"
+            className="flex gap-3 transition-all duration-300"
           >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me to help with your clinical trial..."
+              placeholder="Ask a question or describe what you need analyzed..."
               disabled={status === 'streaming'}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              className="flex-1 px-5 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900 placeholder:text-gray-500 transition-all"
             />
             <button
               type="submit"
               disabled={!input.trim() || status === 'streaming'}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="px-8 py-3.5 bg-teal-600 text-white rounded-xl hover:bg-teal-600/90 disabled:bg-gray-200 disabled:cursor-not-allowed transition-all font-medium shadow-sm hover:shadow-md"
             >
               {status === 'streaming' ? (
                 <div className="flex items-center gap-2">
@@ -651,4 +435,3 @@ User request: ${message.text}`;
     </div>
   );
 }
-

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Qwen AI Chat",
-  description: "AI Chat powered by VLLM and Qwen3-8B Model using Vercel AI SDK",
+  title: "Trialytics",
+  description: "Streamline your research workflow with intelligent automation and data analysis.",
 };
 
 export default function RootLayout({

@@ -1,6 +1,55 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Page transition styles */
+.page-transition {
+  animation: pageEnter 0.3s ease-out;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth transitions for all elements */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Link hover transitions */
+a {
+  transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+a:hover {
+  transform: translateY(-1px);
+}
+
+/* Button transitions */
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+/* Card transitions */
+.card-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+.card-transition:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -110,6 +159,10 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 @layer base {
