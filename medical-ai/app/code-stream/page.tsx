@@ -124,16 +124,16 @@ function CodeExecutionResult({
         {result.output && result.output.trim() && (
           <div className="mt-3">
             <div className="text-sm font-medium text-gray-700 mb-1">Output:</div>
-            <pre className="bg-white p-3 rounded border border-gray-200 overflow-x-auto text-sm">
-              {result.output}
-            </pre>
+            <CodeBlock code={result.output} language="text" showLineNumbers={false}>
+              <CodeBlockCopyButton />
+            </CodeBlock>
           </div>
         )}
         
         {result.error && (
           <div className="mt-3">
             <div className="text-sm font-medium text-red-700 mb-1">Error:</div>
-            <pre className="bg-white p-3 rounded border border-red-300 text-red-700 text-sm overflow-x-auto">
+            <pre className="bg-red-950 text-red-200 p-3 rounded border border-red-800 overflow-x-auto text-sm font-mono">
               {result.error}
             </pre>
           </div>
@@ -198,34 +198,6 @@ function CodeAnalysisResult({
           </ul>
         </div>
       )}
-    </div>
-  );
-}
-
-// Visual component for code examples
-function CodeExamplesResult({ 
-  result 
-}: { 
-  result: {
-    category: string;
-    example: {
-      name: string;
-      code: string;
-    };
-  };
-}) {
-  return (
-    <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="font-medium text-purple-900">Code Example</div>
-        <span className="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded">
-          {result.category}
-        </span>
-      </div>
-      <div className="text-sm text-purple-800 mb-2">{result.example.name}</div>
-      <CodeBlock code={result.example.code} language="python" showLineNumbers={true}>
-        <CodeBlockCopyButton />
-      </CodeBlock>
     </div>
   );
 }
@@ -375,11 +347,21 @@ export default function CodeStreamChat() {
                                 </Reasoning>
                               );
                             } else if (textPart.content.trim()) {
-                              return (
-                                <Response key={`text-${idx}`}>
-                                  {textPart.content}
-                                </Response>
-                              );
+                              // Remove code blocks from text since they'll be shown in tool results
+                              const cleanedContent = textPart.content
+                                .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+                                .replace(/^\s*Output:?\s*$/gm, '') // Remove "Output:" lines
+                                .replace(/^\s*Code:?\s*$/gm, '') // Remove "Code:" lines
+                                .trim();
+                              
+                              if (cleanedContent) {
+                                return (
+                                  <Response key={`text-${idx}`}>
+                                    {cleanedContent}
+                                  </Response>
+                                );
+                              }
+                              return null;
                             }
                             return null;
                           })}
@@ -415,21 +397,6 @@ export default function CodeStreamChat() {
                               )}
                               {part.state === 'output-available' && part.output && (
                                 <CodeAnalysisResult result={part.output} />
-                              )}
-                            </div>
-                          );
-                        
-                        case 'tool-getExamples':
-                          return (
-                            <div key={part.toolCallId} className="mt-3">
-                              {part.state === 'input-streaming' && (
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
-                                  <span className="text-sm">Loading examples...</span>
-                                </div>
-                              )}
-                              {part.state === 'output-available' && part.output && (
-                                <CodeExamplesResult result={part.output} />
                               )}
                             </div>
                           );
