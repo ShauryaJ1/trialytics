@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/table';
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChartDisplay } from './chart-components';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -298,17 +299,21 @@ User request: ${message.text}`;
         `Load and analyze ${uploadedFiles[0].name}`,
         `Show the first 10 rows of the uploaded data`,
         `Calculate summary statistics for the uploaded file`,
-        `Check for missing values and data types in the uploaded dataset`,
-        `Create visualizations from the uploaded data`,
-        `Perform data cleaning and preprocessing on the uploaded file`,
+        `Create a bar chart from the uploaded data`,
+        `Visualize data distribution with a pie chart`,
+        `Plot trends over time using a line chart`,
+        `Show correlations with a scatter plot`,
+        `Perform data cleaning and create visualizations`,
       ]
     : [
-        "Create a pandas DataFrame with sales data and display it in a table",
-        "Compare Python, JavaScript, and Java programming languages in a table",
-        "Show a table of different sorting algorithms with their time complexities",
-        "Create a comparison table of popular machine learning algorithms",
-        "Generate sales data and show summary statistics in a formatted table",
-        "Write Python code to analyze data and present results in a table",
+        "Generate monthly sales data and visualize it with a bar chart",
+        "Create a pie chart showing market share distribution",
+        "Show stock price trends over time with a line chart",
+        "Plot correlation between two variables using scatter plot",
+        "Compare programming languages popularity with a horizontal bar chart",
+        "Visualize time series data with multiple line charts",
+        "Create a stacked bar chart for category comparisons",
+        "Show data distribution using pie and doughnut charts",
       ];
 
   return (
@@ -476,6 +481,37 @@ User request: ${message.text}`;
                               )}
                               {part.state === 'output-available' && part.output && (
                                 <TableDisplay result={part.output} />
+                              )}
+                            </div>
+                          );
+                        
+                        case 'tool-displayBarChart':
+                        case 'tool-displayPieChart':
+                        case 'tool-displayLineChart':
+                        case 'tool-displayScatterChart':
+                          const chartType = part.type.replace('tool-display', '').replace('Chart', '').toLowerCase() as 'bar' | 'pie' | 'line' | 'scatter';
+                          return (
+                            <div key={part.toolCallId} className="mt-3">
+                              {part.state === 'input-streaming' && (
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
+                                  <span className="text-sm">Preparing {chartType} chart...</span>
+                                </div>
+                              )}
+                              {part.state === 'output-available' && part.output && part.output.success && (
+                                <ChartDisplay
+                                  type={part.output.type || chartType}
+                                  data={part.output.data}
+                                  title={part.output.title}
+                                  description={part.output.description}
+                                  config={part.output.config}
+                                />
+                              )}
+                              {part.state === 'output-available' && part.output && !part.output.success && (
+                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                                  <div className="text-red-800 font-medium">Chart Error</div>
+                                  <div className="text-sm text-red-600 mt-1">Failed to create chart</div>
+                                </div>
                               )}
                             </div>
                           );
