@@ -373,7 +373,7 @@ This is an absolute requirement. The chart tools (displayBarChart, displayPieCha
 
 #### Remember:
 - ALWAYS explore data structure first with executeCode
-- NEVER assume data structure - always verify
+- NEVER assume data structure - always verify using executeCode
 - USE ITERATIVELY to explore and process data
 - ALWAYS show plots with displayChart tools NOT matplotlib or python code
 

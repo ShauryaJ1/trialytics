@@ -5,7 +5,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from 'ai';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -25,7 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowDown } from 'lucide-react';
 import { ChartDisplay } from './chart-components';
 import { MarkdownReport } from './report-component';
 
@@ -228,6 +228,9 @@ export default function CodeStreamChat() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePanel, setShowFilePanel] = useState(false);
   const [chartImages, setChartImages] = useState<{ [key: string]: string }>({});
+  const [autoScroll, setAutoScroll] = useState(true);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
@@ -237,6 +240,33 @@ export default function CodeStreamChat() {
   });
 
   // Wrap sendMessage to inject file context
+  // Handle scroll events to detect manual scrolling
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    // Enable auto-scroll when user scrolls near bottom, disable when scrolling up
+    setAutoScroll(isNearBottom);
+  };
+
+  // Auto-scroll to bottom when messages change (if autoScroll is enabled)
+  useEffect(() => {
+    if (autoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, autoScroll]);
+
+  // Auto-scroll when streaming starts or when user sends a message
+  useEffect(() => {
+    if (status === 'streaming' && messagesEndRef.current) {
+      // Always scroll to bottom when user sends a new message
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      setAutoScroll(true);
+    }
+  }, [status]);
+
   const sendMessage = (message: { text: string }) => {
     if (uploadedFiles.length > 0) {
       // Create file context system message
@@ -362,7 +392,11 @@ User request: ${message.text}`;
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div 
+        className="flex-1 overflow-y-auto px-6 py-6" 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+      >
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-12">
@@ -585,8 +619,26 @@ User request: ${message.text}`;
               </div>
             </MessageWithAvatar>
           )}
+          {/* Scroll anchor - this empty div is used to scroll to */}
+          <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Scroll to bottom button */}
+      {!autoScroll && messages.length > 0 && (
+        <div className="absolute bottom-24 right-8 z-10">
+          <button
+            onClick={() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setAutoScroll(true);
+            }}
+            className="bg-white shadow-lg border border-gray-200 rounded-full p-3 hover:bg-gray-50 transition-colors group"
+            title="Scroll to bottom"
+          >
+            <ArrowDown className="h-5 w-5 text-gray-600 group-hover:text-gray-900" />
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t bg-white px-6 py-4">
@@ -643,3 +695,4 @@ User request: ${message.text}`;
     </div>
   );
 }
+
