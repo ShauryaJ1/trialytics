@@ -35,36 +35,38 @@ export const CodeBlock = ({
     <CodeBlockContext.Provider value={{ code }}>
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-md border bg-gray-900 dark:bg-gray-950",
+          "relative w-full overflow-hidden rounded-md border border-gray-700 bg-gray-900",
           className
         )}
         {...props}
       >
         <div className="relative">
-          <pre className="overflow-x-auto p-4">
-            <code className="font-mono text-sm text-gray-100">
-              {showLineNumbers ? (
-                <div className="flex">
-                  <div className="select-none pr-4 text-gray-500">
-                    {lines.map((_, index) => (
-                      <div key={index} className="text-right">
-                        {index + 1}
-                      </div>
-                    ))}
+          {showLineNumbers ? (
+            <div className="flex overflow-x-auto">
+              <div className="select-none px-3 py-4 text-gray-500 text-sm font-mono">
+                {lines.map((_, index) => (
+                  <div key={index} className="text-right pr-3">
+                    {index + 1}
                   </div>
-                  <div className="flex-1">
-                    {lines.map((line, index) => (
-                      <div key={index}>
-                        {line || '\u00A0'}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                code
-              )}
-            </code>
-          </pre>
+                ))}
+              </div>
+              <pre className="flex-1 py-4 pr-4 overflow-x-auto">
+                <code className="font-mono text-sm text-gray-100">
+                  {lines.map((line, index) => (
+                    <div key={index}>
+                      {line || '\u00A0'}
+                    </div>
+                  ))}
+                </code>
+              </pre>
+            </div>
+          ) : (
+            <pre className="p-4 overflow-x-auto">
+              <code className="font-mono text-sm text-gray-100">
+                {code}
+              </code>
+            </pre>
+          )}
           {children && (
             <div className="absolute top-2 right-2 flex items-center gap-2">
               {children}
