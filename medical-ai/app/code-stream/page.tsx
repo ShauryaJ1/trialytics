@@ -326,27 +326,6 @@ User request: ${message.text}`;
   };
 
   // Example prompts - dynamic based on whether files are uploaded
-  const examplePrompts = uploadedFiles.length > 0 
-    ? [
-        `Load and analyze ${uploadedFiles[0].name}`,
-        `Show the first 10 rows of the uploaded data`,
-        `Calculate summary statistics for the uploaded file`,
-        `Create a bar chart from the uploaded data`,
-        `Visualize data distribution with a pie chart`,
-        `Plot trends over time using a line chart`,
-        `Show correlations with a scatter plot`,
-        `Perform data cleaning and create visualizations`,
-      ]
-    : [
-        "Generate monthly sales data and visualize it with a bar chart",
-        "Create a pie chart showing market share distribution",
-        "Show stock price trends over time with a line chart",
-        "Plot correlation between two variables using scatter plot",
-        "Compare programming languages popularity with a horizontal bar chart",
-        "Visualize time series data with multiple line charts",
-        "Create a stacked bar chart for category comparisons",
-        "Show data distribution using pie and doughnut charts",
-      ];
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -409,20 +388,7 @@ User request: ${message.text}`;
               <p className="text-sm text-gray-500 mb-6">
                 Ask me to help with your clinical trial
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {examplePrompts.slice(0, 3).map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setInput(prompt);
-                      sendMessage({ text: prompt });
-                    }}
-                    className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              
             </div>
           )}
           
@@ -644,17 +610,7 @@ User request: ${message.text}`;
       <div className="border-t bg-white px-6 py-4">
         <div className="max-w-4xl mx-auto">
           {/* Example prompts */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {examplePrompts.map((prompt, i) => (
-              <button
-                key={i}
-                onClick={() => setInput(prompt)}
-                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-              >
-                {prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
-              </button>
-            ))}
-          </div>
+         
           
           {/* Input form */}
           <form
