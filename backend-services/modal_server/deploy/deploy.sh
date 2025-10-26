@@ -125,6 +125,10 @@ deploy_cloudformation() {
     # Go back to deploy directory
     cd deploy
     
+    # Generate deployment timestamp
+    DEPLOYMENT_TIMESTAMP=$(date +%s)
+    print_info "Deployment timestamp: $DEPLOYMENT_TIMESTAMP"
+    
     # Check if stack exists
     if aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION &> /dev/null; then
         # Update existing stack
@@ -136,6 +140,7 @@ deploy_cloudformation() {
                 ParameterKey=KeyName,ParameterValue=$KEY_NAME \
                 ParameterKey=ECRRepositoryName,ParameterValue=$ECR_REPO_NAME \
                 ParameterKey=ImageTag,ParameterValue=$IMAGE_TAG \
+                ParameterKey=DeploymentTimestamp,ParameterValue=$DEPLOYMENT_TIMESTAMP \
             --capabilities CAPABILITY_IAM \
             --region $REGION
         
@@ -152,6 +157,7 @@ deploy_cloudformation() {
                 ParameterKey=KeyName,ParameterValue=$KEY_NAME \
                 ParameterKey=ECRRepositoryName,ParameterValue=$ECR_REPO_NAME \
                 ParameterKey=ImageTag,ParameterValue=$IMAGE_TAG \
+                ParameterKey=DeploymentTimestamp,ParameterValue=$DEPLOYMENT_TIMESTAMP \
             --capabilities CAPABILITY_IAM \
             --region $REGION
         

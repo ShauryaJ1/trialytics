@@ -1,0 +1,16 @@
+patient_id,age,gender,blood_pressure_systolic,blood_pressure_diastolic,heart_rate,temperature,glucose_level,diagnosis
+P001,45,M,120,80,72,98.6,95,Healthy
+P002,67,F,145,92,78,99.1,180,Hypertension
+P003,34,M,118,75,68,98.4,88,Healthy
+P004,52,F,135,88,74,98.7,120,Pre-diabetic
+P005,28,M,115,70,65,98.5,90,Healthy
+P006,73,M,150,95,82,99.2,200,Diabetes
+P007,41,F,125,82,70,98.6,105,Healthy
+P008,59,M,140,90,76,98.8,145,Hypertension
+P009,36,F,122,78,69,98.5,92,Healthy
+P010,61,M,138,85,75,98.9,155,Pre-diabetic
+P011,29,F,116,72,66,98.4,87,Healthy
+P012,55,M,142,91,77,99.0,170,Diabetes
+P013,48,F,128,83,71,98.6,98,Healthy
+P014,64,M,146,93,80,99.1,185,Hypertension
+P015,39,F,119,76,67,98.5,91,Healthy
