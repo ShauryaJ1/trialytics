@@ -280,18 +280,33 @@ export function PieChart({
             size: 12,
           },
           generateLabels: (chart) => {
-            const original = ChartJS.defaults.plugins.legend.labels.generateLabels;
-            const labels = original(chart);
+            const dataset = chart.data.datasets[0];
+            const labels = chart.data.labels || [];
+            const data = dataset?.data as number[] || [];
+            const backgroundColor = dataset?.backgroundColor as string[] || [];
+            const borderColor = dataset?.borderColor as string | string[] || '#ffffff';
             
-            labels.forEach((label) => {
-              const dataset = chart.data.datasets[0];
-              const value = dataset.data[label.index as number] as number;
-              const total = (dataset.data as number[]).reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              label.text = `${label.text}: ${percentage}%`;
+            // Calculate total for percentages
+            const total = data.reduce((a, b) => (a || 0) + (b || 0), 0);
+            
+            // Create a legend item for each slice of the pie
+            return labels.map((label, index) => {
+              const value = data[index] || 0;
+              const percentage = total > 0 && !isNaN(value) 
+                ? ((value / total) * 100).toFixed(1)
+                : '0';
+              
+              return {
+                text: `${label}: ${percentage}%`,
+                fillStyle: backgroundColor[index] || backgroundColor[index % backgroundColor.length] || '#ccc',
+                strokeStyle: Array.isArray(borderColor) ? borderColor[index] : borderColor,
+                lineWidth: 2,
+                hidden: false,
+                index: index,
+                // Add data properties for Chart.js to handle clicks/hovers
+                datasetIndex: 0,
+              };
             });
-            
-            return labels;
           },
         },
       },
@@ -299,9 +314,13 @@ export function PieChart({
     cutout: isDoughnut ? '50%' : undefined,
   };
 
-  // Apply default colors if not provided
+  // Apply default colors and ensure valid labels
   const enhancedData = {
     ...data,
+    // Ensure we have valid labels
+    labels: data.labels && data.labels.length > 0 
+      ? data.labels 
+      : data.datasets[0]?.data?.map((_, index) => `Category ${index + 1}`) || [],
     datasets: data.datasets.map(dataset => ({
       ...dataset,
       backgroundColor: dataset.backgroundColor || [

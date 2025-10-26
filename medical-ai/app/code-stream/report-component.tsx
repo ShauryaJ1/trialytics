@@ -38,33 +38,44 @@ export function MarkdownReport({
   const [chartBase64Map, setChartBase64Map] = useState<{ [key: string]: string }>({});
   const reportRef = useRef<HTMLDivElement>(null);
 
-  // Process content to replace chart placeholders with actual charts or base64 images
+  // Process content to clean up any base64 URLs that might be in the markdown
   const processedContent = React.useMemo(() => {
     let processed = content;
     
-    // Replace chart placeholders with base64 images if available
-    Object.entries(chartBase64Map).forEach(([id, base64]) => {
-      const placeholder = `![${id}]`;
-      const imageTag = `![${id}](${base64})`;
-      processed = processed.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), imageTag);
+    // Debug: Log if we find base64 URLs in the content
+    if (processed.includes('data:image')) {
+      console.log('Found base64 URLs in markdown content, cleaning up...');
+    }
+    
+    // Remove any existing base64 data URLs from markdown image syntax
+    // This prevents the long base64 strings from appearing as text
+    // Pattern: ![chart_id](data:image/png;base64,...) -> ![chart_id]
+    processed = processed.replace(/!\[([^\]]+)\]\(data:image\/[^)]+\)/g, (match, chartId) => {
+      console.log(`Cleaning up base64 URL for chart: ${chartId}`);
+      return `![${chartId}]`;
     });
     
-    // Also replace with images prop if provided
-    Object.entries(images).forEach(([id, base64]) => {
-      const placeholder = `![${id}]`;
-      const imageTag = `![${id}](${base64})`;
-      processed = processed.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), imageTag);
-    });
+    // Also handle cases where the parentheses might be on a new line or have spaces
+    processed = processed.replace(/!\[([^\]]+)\]\s*\([^)]*data:image[^)]+\)/g, '![$1]');
+    
+    // Handle raw base64 strings that might have been inserted without proper markdown
+    processed = processed.replace(/\(data:image\/[^)]+\)/g, '');
     
     return processed;
   }, [content, images, chartBase64Map]);
 
   const downloadReport = () => {
     // Generate final content with base64 images embedded
-    let finalContent = content;
+    let finalContent = processedContent; // Use processed content that has cleaned up base64 URLs
     
-    // Replace chart placeholders with base64 images
+    // Replace chart placeholders with base64 images for download
     Object.entries(chartBase64Map).forEach(([id, base64]) => {
+      const placeholder = new RegExp(`!\\[${id}\\]`, 'g');
+      finalContent = finalContent.replace(placeholder, `![${id}](${base64})`);
+    });
+    
+    // Also handle images prop
+    Object.entries(images).forEach(([id, base64]) => {
       const placeholder = new RegExp(`!\\[${id}\\]`, 'g');
       finalContent = finalContent.replace(placeholder, `![${id}](${base64})`);
     });
@@ -463,13 +474,43 @@ export function MarkdownReport({
                 },
                 // Custom image rendering for base64 images
                 img({ src, alt }) {
-                  return (
-                    <img 
-                      src={src} 
-                      alt={alt || 'Report image'}
-                      className="rounded-lg shadow-md my-4 max-w-full h-auto"
-                    />
-                  );
+                  // Check if this is a chart placeholder (either without src or with a data URL we want to replace)
+                  const srcStr = typeof src === 'string' ? src : '';
+                  if (alt && (alt.includes('chart_') || !src || srcStr.startsWith('data:'))) {
+                    // Look for the base64 image in our maps using the alt text as the key
+                    const chartId = alt.replace(/^.*?((?:bar|pie|line|scatter)_chart_\d+).*$/, '$1');
+                    const base64 = chartBase64Map[chartId] || images[chartId] || chartBase64Map[alt] || images[alt];
+                    
+                    if (base64) {
+                      return (
+                        <img 
+                          src={base64} 
+                          alt={alt || 'Chart visualization'}
+                          className="rounded-lg shadow-md my-4 max-w-full h-auto"
+                        />
+                      );
+                    }
+                    // If no base64 available yet, show a placeholder
+                    return (
+                      <div className="bg-gray-100 rounded-lg p-8 my-4 text-center text-gray-500">
+                        <div className="text-sm">Chart loading: {alt || chartId}</div>
+                      </div>
+                    );
+                  }
+                  
+                  // Normal image with a proper src URL
+                  if (src && !srcStr.startsWith('data:')) {
+                    return (
+                      <img 
+                        src={src} 
+                        alt={alt || 'Report image'}
+                        className="rounded-lg shadow-md my-4 max-w-full h-auto"
+                      />
+                    );
+                  }
+                  
+                  // Don't render anything for malformed images
+                  return null;
                 },
                 // Custom styling for headings
                 h1({ children }) {
