@@ -15,6 +15,15 @@ import {
 import { Response } from '@/components/ai-elements/response';
 import { CodeBlock, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import { MessageWithAvatar } from './message-component';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -143,61 +152,69 @@ function CodeExecutionResult({
   );
 }
 
-// Visual component for code analysis
-function CodeAnalysisResult({ 
+// Visual component for table display
+function TableDisplay({ 
   result 
 }: { 
-  result: {
-    lineCount: number;
-    hasImports: boolean;
-    hasPrintStatements: boolean;
-    hasReturnStatements: boolean;
-    issues: string[];
-    suggestions: string[];
-    code?: string;
-  };
+  result: any; // Using any to avoid type conflicts with the tool output
 }) {
+  if (!result.success || !result.headers || !result.rows) {
+    return (
+      <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+        <div className="text-red-800 font-medium">Table Error</div>
+        <div className="text-sm text-red-600 mt-1">{result.error || 'Invalid table data'}</div>
+      </div>
+    );
+  }
+
+  const getAlignmentClass = (align?: 'left' | 'center' | 'right') => {
+    switch (align) {
+      case 'center': return 'text-center';
+      case 'right': return 'text-right';
+      default: return 'text-left';
+    }
+  };
+
   return (
-    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 space-y-3">
-      <div className="font-medium text-blue-900">Code Analysis</div>
-      
-      {result.code && (
-        <div>
-          <div className="text-sm font-medium text-gray-700 mb-2">Analyzed Code:</div>
-          <CodeBlock code={result.code} language="python" showLineNumbers={false}>
-            <CodeBlockCopyButton />
-          </CodeBlock>
-        </div>
-      )}
-      
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div>Lines of code: <span className="font-medium">{result.lineCount}</span></div>
-        <div>Has imports: <span className="font-medium">{result.hasImports ? 'Yes' : 'No'}</span></div>
-        <div>Has print statements: <span className="font-medium">{result.hasPrintStatements ? 'Yes' : 'No'}</span></div>
-        <div>Has return statements: <span className="font-medium">{result.hasReturnStatements ? 'Yes' : 'No'}</span></div>
+    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-medium text-blue-900">Data Table</div>
+        <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
+          {result.rowCount} rows × {result.columnCount} columns
+        </span>
       </div>
       
-      {result.issues.length > 0 && (
-        <div>
-          <div className="text-sm font-medium text-red-700 mb-1">Issues:</div>
-          <ul className="list-disc list-inside text-sm text-red-600">
-            {result.issues.map((issue, i) => (
-              <li key={i}>{issue}</li>
+      <div className="bg-white rounded border border-gray-300 overflow-hidden">
+        <Table className="border-collapse">
+          {result.caption && <TableCaption className="text-gray-600 px-4 py-2">{result.caption}</TableCaption>}
+          <TableHeader>
+            <TableRow className="bg-gray-100 border-b-2 border-gray-300">
+              {result.headers.map((header: string, idx: number) => (
+                <TableHead 
+                  key={idx} 
+                  className={`border-r border-gray-300 last:border-r-0 font-semibold text-gray-900 px-4 py-2 ${getAlignmentClass(result.alignment?.[idx])}`}
+                >
+                  {header}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.rows.map((row: string[], rowIdx: number) => (
+              <TableRow key={rowIdx} className="border-b border-gray-200 hover:bg-gray-50">
+                {row.map((cell: string, cellIdx: number) => (
+                  <TableCell 
+                    key={cellIdx} 
+                    className={`border-r border-gray-200 last:border-r-0 px-4 py-2 ${getAlignmentClass(result.alignment?.[cellIdx])}`}
+                  >
+                    {cell}
+                  </TableCell>
+                ))}
+              </TableRow>
             ))}
-          </ul>
-        </div>
-      )}
-      
-      {result.suggestions.length > 0 && (
-        <div>
-          <div className="text-sm font-medium text-blue-700 mb-1">Suggestions:</div>
-          <ul className="list-disc list-inside text-sm text-blue-600">
-            {result.suggestions.map((suggestion, i) => (
-              <li key={i}>{suggestion}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -234,12 +251,12 @@ export default function CodeStreamChat() {
 
   // Example prompts
   const examplePrompts = [
-    "Write and execute Python code to calculate the factorial of 10",
-    "Create a pandas DataFrame with sales data and calculate total revenue by category",
-    "Generate a matplotlib visualization showing sine and cosine waves",
-    "Analyze this code for improvements: print('hello')",
-    "Show me an example of machine learning code",
-    "Write code to scrape data from a public API",
+    "Create a pandas DataFrame with sales data and display it in a table",
+    "Compare Python, JavaScript, and Java programming languages in a table",
+    "Show a table of different sorting algorithms with their time complexities",
+    "Create a comparison table of popular machine learning algorithms",
+    "Generate sales data and show summary statistics in a formatted table",
+    "Write Python code to analyze data and present results in a table",
   ];
 
   return (
@@ -386,17 +403,17 @@ export default function CodeStreamChat() {
                             </div>
                           );
                         
-                        case 'tool-analyzeCode':
+                        case 'tool-displayTable':
                           return (
                             <div key={part.toolCallId} className="mt-3">
                               {part.state === 'input-streaming' && (
                                 <div className="flex items-center gap-2 text-gray-600">
                                   <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
-                                  <span className="text-sm">Analyzing code...</span>
+                                  <span className="text-sm">Preparing table...</span>
                                 </div>
                               )}
                               {part.state === 'output-available' && part.output && (
-                                <CodeAnalysisResult result={part.output} />
+                                <TableDisplay result={part.output} />
                               )}
                             </div>
                           );

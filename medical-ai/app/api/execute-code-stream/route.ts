@@ -76,50 +76,45 @@ const tools = {
     },
   }),
   
-  analyzeCode: tool({
-    description: 'Analyze Python code for potential issues or improvements',
+  displayTable: tool({
+    description: 'Display data in a formatted table with borders and dividers. Use this to show structured data, results, comparisons, or any tabular information.',
     inputSchema: z.object({
-      code: z.string().describe('Python code to analyze'),
+      headers: z.array(z.string()).describe('Column headers for the table'),
+      rows: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])))
+        .describe('Table rows, each row is an array of cell values'),
+      caption: z.string().optional().describe('Optional caption for the table'),
+      alignment: z.array(z.enum(['left', 'center', 'right'])).optional()
+        .describe('Optional alignment for each column (defaults to left)'),
     }),
-    execute: async ({ code }) => {
-      const lines = code.split('\n');
-      const issues: string[] = [];
-      const suggestions: string[] = [];
+    execute: async ({ headers, rows, caption, alignment }) => {
+      // Validate that all rows have the same number of columns as headers
+      const columnCount = headers.length;
+      const validRows = rows.every(row => row.length === columnCount);
       
-      // Basic static analysis
-      if (!code.includes('import')) {
-        suggestions.push('Consider adding necessary imports at the beginning');
+      if (!validRows) {
+        return {
+          success: false,
+          error: 'All rows must have the same number of columns as headers',
+          headers,
+          rows,
+          caption,
+          alignment,
+        };
       }
       
-      if (code.includes('open(') && !code.includes('try:')) {
-        issues.push('File operations should include error handling');
-      }
-      
-      const hasPrint = code.includes('print(');
-      const hasReturn = code.includes('return ');
-      
-      if (!hasPrint && !hasReturn) {
-        issues.push('CRITICAL: No print() statements found! Code will execute but show no output. Add print() statements to display results.');
-        suggestions.push('Add print() statements to display all important results, calculations, and DataFrame contents');
-      } else if (!hasPrint) {
-        suggestions.push('Consider adding print() statements in addition to return values for better visibility');
-      }
-      
-      // Check for common pandas patterns
-      if (code.includes('pandas') || code.includes('pd.')) {
-        if (!code.includes('.head()') && !code.includes('.info()') && !code.includes('.describe()')) {
-          suggestions.push('Consider using .head(), .info(), or .describe() to inspect DataFrames');
-        }
-      }
+      // Convert all values to strings for display
+      const formattedRows = rows.map(row => 
+        row.map(cell => cell === null ? '' : String(cell))
+      );
       
       return {
-        lineCount: lines.length,
-        hasImports: code.includes('import'),
-        hasPrintStatements: hasPrint,
-        hasReturnStatements: hasReturn,
-        issues,
-        suggestions,
-        code: code,
+        success: true,
+        headers,
+        rows: formattedRows,
+        caption,
+        alignment: alignment || headers.map(() => 'left' as const),
+        rowCount: rows.length,
+        columnCount,
       };
     },
   }),
@@ -134,11 +129,51 @@ export async function POST(request: Request) {
 
   console.log('Processing streaming request with messages:', messages.length);
 
-  // Add system message to ensure proper code output
+  // Add comprehensive system message about available tools and Modal environment
   const enhancedMessages = [
     {
       role: 'system' as const,
-      content: 'When writing Python code, ALWAYS use print() statements to display all results, outputs, DataFrames, calculations, and any values the user would want to see. Without print(), the output will be empty. For DataFrames, use print(df) or print(df.head()). For calculations, use print(f"Result: {result}"). Make outputs clear and well-formatted.'
+      content: `You are an AI coding assistant with access to several powerful tools. Here's what you can do:
+
+## Available Tools:
+
+### 1. executeCode
+- Executes Python code in a sandboxed Modal environment
+- Has common data science packages pre-installed (pandas, numpy, scipy, matplotlib, seaborn, scikit-learn, requests, beautifulsoup4, etc.)
+- IMPORTANT: Always use print() statements to display ALL results, outputs, DataFrames, and calculations
+- Without print(), the output will be empty
+- For DataFrames: use print(df) or print(df.head())
+- For calculations: use print(f"Result: {result}")
+- Maximum timeout: 300 seconds
+- You can always add print statements to get the outputs of the execution, for example the mean of a column in a dataset, or things like that
+
+### 2. displayTable
+- Creates beautifully formatted tables with borders and dividers
+- Use this for displaying structured data, comparisons, or any tabular information
+- Provides proper column alignment and visual separation
+- Ideal for presenting analysis results, comparisons between items, or data summaries
+- Supports captions and custom column alignments (left, center, right)
+
+## Important Notes:
+
+### Modal Environment Limitations:
+- The Python code runs in an isolated Modal container
+- The tools (executeCode, displayTable) are NOT available inside the Python code. They aren't python functions, they are tools for you to use
+- You cannot call these tools from within the Python code itself
+- Instead, use these tools sequentially: first execute code to get data, then use displayTable to show results nicely
+
+### Best Practices:
+1. When analyzing data: First execute Python code to process data, then use displayTable to present results
+2. Always include print() statements in Python code for visibility
+3. Use displayTable for final presentation of structured results, comparisons, or summaries
+4. Break complex tasks into steps: data processing (executeCode) → presentation (displayTable)
+5. You can pass the output of one tool to the input of another tool, for example you can pass the output of executeCode to the input of displayTable
+### Example Workflow:
+1. User asks for data analysis
+2. Use executeCode to process data with Python (with print statements for intermediate results)
+3. Use displayTable to present final results in a clean, formatted table
+
+Remember: The tools enhance your capabilities but work independently. Plan your approach to use each tool effectively for the best results.`
     },
     ...convertToModelMessages(messages)
   ];

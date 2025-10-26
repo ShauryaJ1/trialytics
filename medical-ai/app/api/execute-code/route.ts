@@ -56,51 +56,6 @@ const executeCodeTool = tool({
   },
 });
 
-// Additional utility tools that might be useful for code generation and analysis
-const analyzeCodeTool = tool({
-  description: 'Analyze Python code for potential issues or improvements',
-  inputSchema: z.object({
-    code: z.string().describe('Python code to analyze'),
-  }),
-  execute: async ({ code }) => {
-    // Basic static analysis (can be enhanced with actual linting)
-    const lines = code.split('\n');
-    const issues = [];
-    const suggestions = [];
-    
-    // Check for common issues
-    if (!code.includes('import')) {
-      suggestions.push('Consider adding necessary imports at the beginning');
-    }
-    
-    // Check for basic error handling
-    if (code.includes('open(') && !code.includes('try:')) {
-      issues.push('File operations should include error handling');
-    }
-    
-    // Check for print statements vs return values
-    const hasPrint = code.includes('print(');
-    const hasReturn = code.includes('return ');
-    
-    if (!hasPrint && !hasReturn) {
-      issues.push('CRITICAL: No print() statements found! Code will execute but show no output. Add print() statements to display results.');
-      suggestions.push('Add print() statements to display all important results, calculations, and DataFrame contents');
-    } else if (!hasPrint) {
-      suggestions.push('Consider adding print() statements in addition to return values for better visibility');
-    }
-    
-    return {
-      lineCount: lines.length,
-      hasImports: code.includes('import'),
-      hasPrintStatements: hasPrint,
-      hasReturnStatements: hasReturn,
-      issues,
-      suggestions,
-    };
-  },
-});
-
-
 export async function POST(req: Request) {
   try {
     const { prompt, includeExamples = false } = await req.json();
@@ -120,7 +75,6 @@ export async function POST(req: Request) {
       prompt: enhancedPrompt,
       tools: {
         executeCode: executeCodeTool,
-        analyzeCode: analyzeCodeTool,
       },
       toolChoice: 'auto', // Let the model decide which tools to use
       temperature: 0.7,
