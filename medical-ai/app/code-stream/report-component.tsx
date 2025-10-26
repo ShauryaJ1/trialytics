@@ -280,7 +280,8 @@ export function MarkdownReport({
     
     // Lists
     html = html.replace(/^\* (.+)$/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    // Replace single-line regex with multi-line compatible version
+    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
     
     // Tables (basic support)
     html = html.replace(/\|(.+)\|/g, function(match, content) {
@@ -399,9 +400,10 @@ export function MarkdownReport({
               remarkPlugins={[remarkGfm]}
               components={{
                 // Custom rendering for code blocks
-                code({ node, inline, className, children, ...props }) {
+                code({ node, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
-                  return !inline && match ? (
+                  const isInline = !className || !match;
+                  return !isInline && match ? (
                     <div className="relative group my-4">
                       <div className="absolute top-2 right-2 text-xs text-gray-400 uppercase tracking-wider">
                         {match[1]}

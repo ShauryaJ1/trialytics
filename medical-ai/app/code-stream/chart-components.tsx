@@ -19,6 +19,7 @@ import {
   ScatterController,
   BubbleController,
   ChartData,
+  ChartTypeRegistry,
 } from 'chart.js';
 import { Bar, Pie, Line, Scatter } from 'react-chartjs-2';
 import { Download, Maximize2, Minimize2 } from 'lucide-react';
@@ -40,39 +41,41 @@ ChartJS.register(
   BubbleController
 );
 
-// Common chart options
-const defaultOptions: ChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        padding: 15,
-        font: {
+// Common chart options - using a function to create type-specific options
+function getDefaultOptions<T extends keyof ChartTypeRegistry>(): ChartOptions<T> {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          padding: 15,
+          font: {
+            size: 12,
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: 12,
+        titleFont: {
+          size: 14,
+        },
+        bodyFont: {
           size: 12,
         },
       },
     },
-    tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      padding: 12,
-      titleFont: {
-        size: 14,
-      },
-      bodyFont: {
-        size: 12,
-      },
-    },
-  },
-};
+  } as ChartOptions<T>;
+}
 
 // Chart container wrapper for consistent styling and controls
 interface ChartContainerProps {
   children: React.ReactNode;
   title?: string;
   description?: string;
-  chartRef?: React.RefObject<ChartJS>;
+  chartRef?: React.RefObject<ChartJS<any, any, any> | null>;
   onBase64Generated?: (base64: string) => void;
 }
 
@@ -173,7 +176,7 @@ export function BarChart({
   const chartRef = useRef<ChartJS<'bar'>>(null);
 
   const enhancedOptions: ChartOptions<'bar'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'bar'>(),
     ...options,
     indexAxis: horizontal ? 'y' : 'x',
     scales: {
@@ -264,10 +267,10 @@ export function PieChart({
   const chartRef = useRef<ChartJS<'pie'>>(null);
 
   const enhancedOptions: ChartOptions<'pie'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'pie'>(),
     ...options,
     plugins: {
-      ...defaultOptions.plugins,
+      ...getDefaultOptions<'pie'>().plugins,
       ...options.plugins,
       legend: {
         position: 'right' as const,
@@ -358,7 +361,7 @@ export function LineChart({
   const chartRef = useRef<ChartJS<'line'>>(null);
 
   const enhancedOptions: ChartOptions<'line'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'line'>(),
     ...options,
     interaction: {
       mode: 'index',
@@ -456,7 +459,7 @@ export function ScatterChart({
   const chartRef = useRef<ChartJS<'scatter'>>(null);
 
   const enhancedOptions: ChartOptions<'scatter'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'scatter'>(),
     ...options,
     scales: {
       x: {

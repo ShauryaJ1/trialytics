@@ -1,6 +1,7 @@
 'use client';
 
-import { MessageWithAvatar, Message, MessageContent, MessageAvatar, Response } from './message-component';
+import { MessageWithAvatar, Message, MessageContent, MessageAvatar } from './message-component';
+import { Response } from '@/components/ai-elements/response';
 
 export default function MessageDemo() {
   return (

@@ -43,7 +43,6 @@ export const qwenProvider = createOpenAICompatible({
   baseURL: process.env.VLLM_BASE_URL || 'cooked',
   // No API key needed for this endpoint - VLLM doesn't require auth
   includeUsage: true, // Include usage information in streaming responses
-  metadataExtractor: vllmMetadataExtractor, // Use custom metadata extractor for VLLM
 });
 
 // Export the model instance with max tokens configuration

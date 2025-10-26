@@ -619,7 +619,7 @@ User request: ${message.text}`;
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me to write and execute Python code..."
+              placeholder="Ask me to help with your clinical trial..."
               disabled={status === 'streaming'}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
