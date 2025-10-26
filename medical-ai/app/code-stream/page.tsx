@@ -5,7 +5,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from 'ai';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ExecuteCodeMessage } from '../api/execute-code-stream/route';
 import { 
   Reasoning, 
@@ -25,8 +25,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowDown } from 'lucide-react';
 import { ChartDisplay } from './chart-components';
+import { MarkdownReport } from './report-component';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -226,6 +227,10 @@ export default function CodeStreamChat() {
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePanel, setShowFilePanel] = useState(false);
+  const [chartImages, setChartImages] = useState<{ [key: string]: string }>({});
+  const [autoScroll, setAutoScroll] = useState(true);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
@@ -235,6 +240,33 @@ export default function CodeStreamChat() {
   });
 
   // Wrap sendMessage to inject file context
+  // Handle scroll events to detect manual scrolling
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    // Enable auto-scroll when user scrolls near bottom, disable when scrolling up
+    setAutoScroll(isNearBottom);
+  };
+
+  // Auto-scroll to bottom when messages change (if autoScroll is enabled)
+  useEffect(() => {
+    if (autoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, autoScroll]);
+
+  // Auto-scroll when streaming starts or when user sends a message
+  useEffect(() => {
+    if (status === 'streaming' && messagesEndRef.current) {
+      // Always scroll to bottom when user sends a new message
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      setAutoScroll(true);
+    }
+  }, [status]);
+
   const sendMessage = (message: { text: string }) => {
     if (uploadedFiles.length > 0) {
       // Create file context system message
@@ -294,37 +326,13 @@ User request: ${message.text}`;
   };
 
   // Example prompts - dynamic based on whether files are uploaded
-  const examplePrompts = uploadedFiles.length > 0 
-    ? [
-        `Load and analyze ${uploadedFiles[0].name}`,
-        `Show the first 10 rows of the uploaded data`,
-        `Calculate summary statistics for the uploaded file`,
-        `Create a bar chart from the uploaded data`,
-        `Visualize data distribution with a pie chart`,
-        `Plot trends over time using a line chart`,
-        `Show correlations with a scatter plot`,
-        `Perform data cleaning and create visualizations`,
-      ]
-    : [
-        "Generate monthly sales data and visualize it with a bar chart",
-        "Create a pie chart showing market share distribution",
-        "Show stock price trends over time with a line chart",
-        "Plot correlation between two variables using scatter plot",
-        "Compare programming languages popularity with a horizontal bar chart",
-        "Visualize time series data with multiple line charts",
-        "Create a stacked bar chart for category comparisons",
-        "Show data distribution using pie and doughnut charts",
-      ];
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800">Code Execution with Streaming</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            AI-powered Python code execution with real-time streaming and visual feedback
-          </p>
+          
         </div>
       </div>
 
@@ -363,7 +371,11 @@ User request: ${message.text}`;
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div 
+        className="flex-1 overflow-y-auto px-6 py-6" 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+      >
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.length === 0 && (
             <div className="text-center py-12">
@@ -372,24 +384,11 @@ User request: ${message.text}`;
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to execute code</h3>
+              <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to help</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Ask me to write and execute Python code, or try one of the examples below
+                Ask me to help with your clinical trial
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {examplePrompts.slice(0, 3).map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setInput(prompt);
-                      sendMessage({ text: prompt });
-                    }}
-                    className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              
             </div>
           )}
           
@@ -505,12 +504,46 @@ User request: ${message.text}`;
                                   title={part.output.title}
                                   description={part.output.description}
                                   config={part.output.config}
+                                  onBase64Generated={(base64) => {
+                                    // Store base64 image for report references
+                                    if (part.output.chartId) {
+                                      setChartImages(prev => ({ ...prev, [part.output.chartId]: base64 }));
+                                    }
+                                  }}
                                 />
                               )}
                               {part.state === 'output-available' && part.output && !part.output.success && (
                                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
                                   <div className="text-red-800 font-medium">Chart Error</div>
                                   <div className="text-sm text-red-600 mt-1">Failed to create chart</div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        
+                        case 'tool-generateMarkdownReport':
+                          return (
+                            <div key={part.toolCallId} className="mt-3">
+                              {part.state === 'input-streaming' && (
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
+                                  <span className="text-sm">Generating report...</span>
+                                </div>
+                              )}
+                              {part.state === 'output-available' && part.output && part.output.success && (
+                                <MarkdownReport
+                                  content={part.output.content}
+                                  title={part.output.title}
+                                  description={part.output.description}
+                                  chartData={part.output.chartData}
+                                  images={chartImages}
+                                  metadata={part.output.metadata}
+                                />
+                              )}
+                              {part.state === 'output-available' && part.output && !part.output.success && (
+                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                                  <div className="text-red-800 font-medium">Report Generation Error</div>
+                                  <div className="text-sm text-red-600 mt-1">Failed to generate report</div>
                                 </div>
                               )}
                             </div>
@@ -552,24 +585,32 @@ User request: ${message.text}`;
               </div>
             </MessageWithAvatar>
           )}
+          {/* Scroll anchor - this empty div is used to scroll to */}
+          <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Scroll to bottom button */}
+      {!autoScroll && messages.length > 0 && (
+        <div className="absolute bottom-24 right-8 z-10">
+          <button
+            onClick={() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setAutoScroll(true);
+            }}
+            className="bg-white shadow-lg border border-gray-200 rounded-full p-3 hover:bg-gray-50 transition-colors group"
+            title="Scroll to bottom"
+          >
+            <ArrowDown className="h-5 w-5 text-gray-600 group-hover:text-gray-900" />
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t bg-white px-6 py-4">
         <div className="max-w-4xl mx-auto">
           {/* Example prompts */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {examplePrompts.map((prompt, i) => (
-              <button
-                key={i}
-                onClick={() => setInput(prompt)}
-                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-              >
-                {prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
-              </button>
-            ))}
-          </div>
+         
           
           {/* Input form */}
           <form
@@ -586,7 +627,7 @@ User request: ${message.text}`;
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me to write and execute Python code..."
+              placeholder="Ask me to help with your clinical trial..."
               disabled={status === 'streaming'}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
@@ -610,3 +651,4 @@ User request: ${message.text}`;
     </div>
   );
 }
+

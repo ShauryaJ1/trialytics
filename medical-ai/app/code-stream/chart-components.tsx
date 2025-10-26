@@ -19,6 +19,7 @@ import {
   ScatterController,
   BubbleController,
   ChartData,
+  ChartTypeRegistry,
 } from 'chart.js';
 import { Bar, Pie, Line, Scatter } from 'react-chartjs-2';
 import { Download, Maximize2, Minimize2 } from 'lucide-react';
@@ -40,43 +41,59 @@ ChartJS.register(
   BubbleController
 );
 
-// Common chart options
-const defaultOptions: ChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        padding: 15,
-        font: {
+// Common chart options - using a function to create type-specific options
+function getDefaultOptions<T extends keyof ChartTypeRegistry>(): ChartOptions<T> {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          padding: 15,
+          font: {
+            size: 12,
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: 12,
+        titleFont: {
+          size: 14,
+        },
+        bodyFont: {
           size: 12,
         },
       },
     },
-    tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      padding: 12,
-      titleFont: {
-        size: 14,
-      },
-      bodyFont: {
-        size: 12,
-      },
-    },
-  },
-};
+  } as ChartOptions<T>;
+}
 
 // Chart container wrapper for consistent styling and controls
 interface ChartContainerProps {
   children: React.ReactNode;
   title?: string;
   description?: string;
-  chartRef?: React.RefObject<ChartJS>;
+  chartRef?: React.RefObject<ChartJS<any, any, any> | null>;
+  onBase64Generated?: (base64: string) => void;
 }
 
-function ChartContainer({ children, title, description, chartRef }: ChartContainerProps) {
+function ChartContainer({ children, title, description, chartRef, onBase64Generated }: ChartContainerProps) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  
+  // Generate base64 when chart is ready
+  useEffect(() => {
+    if (chartRef?.current && onBase64Generated) {
+      // Wait a bit for chart to render
+      setTimeout(() => {
+        const base64 = chartRef.current?.toBase64Image();
+        if (base64) {
+          onBase64Generated(base64);
+        }
+      }, 500);
+    }
+  }, [chartRef, onBase64Generated]);
   
   const downloadChart = () => {
     if (chartRef?.current) {
@@ -144,6 +161,7 @@ interface BarChartProps {
   description?: string;
   stacked?: boolean;
   horizontal?: boolean;
+  onBase64Generated?: (base64: string) => void;
 }
 
 export function BarChart({ 
@@ -152,12 +170,13 @@ export function BarChart({
   title, 
   description,
   stacked = false,
-  horizontal = false
+  horizontal = false,
+  onBase64Generated
 }: BarChartProps) {
   const chartRef = useRef<ChartJS<'bar'>>(null);
 
   const enhancedOptions: ChartOptions<'bar'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'bar'>(),
     ...options,
     indexAxis: horizontal ? 'y' : 'x',
     scales: {
@@ -212,7 +231,7 @@ export function BarChart({
   };
 
   return (
-    <ChartContainer title={title} description={description} chartRef={chartRef}>
+    <ChartContainer title={title} description={description} chartRef={chartRef} onBase64Generated={onBase64Generated}>
       <Bar ref={chartRef} data={enhancedData} options={enhancedOptions} />
     </ChartContainer>
   );
@@ -234,6 +253,7 @@ interface PieChartProps {
   title?: string;
   description?: string;
   isDoughnut?: boolean;
+  onBase64Generated?: (base64: string) => void;
 }
 
 export function PieChart({ 
@@ -241,15 +261,16 @@ export function PieChart({
   options = {}, 
   title, 
   description,
-  isDoughnut = false 
+  isDoughnut = false,
+  onBase64Generated
 }: PieChartProps) {
   const chartRef = useRef<ChartJS<'pie'>>(null);
 
   const enhancedOptions: ChartOptions<'pie'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'pie'>(),
     ...options,
     plugins: {
-      ...defaultOptions.plugins,
+      ...getDefaultOptions<'pie'>().plugins,
       ...options.plugins,
       legend: {
         position: 'right' as const,
@@ -299,7 +320,7 @@ export function PieChart({
   };
 
   return (
-    <ChartContainer title={title} description={description} chartRef={chartRef}>
+    <ChartContainer title={title} description={description} chartRef={chartRef} onBase64Generated={onBase64Generated}>
       <Pie ref={chartRef} data={enhancedData} options={enhancedOptions} />
     </ChartContainer>
   );
@@ -325,6 +346,7 @@ interface LineChartProps {
   description?: string;
   smooth?: boolean;
   area?: boolean;
+  onBase64Generated?: (base64: string) => void;
 }
 
 export function LineChart({ 
@@ -333,12 +355,13 @@ export function LineChart({
   title, 
   description,
   smooth = true,
-  area = false
+  area = false,
+  onBase64Generated
 }: LineChartProps) {
   const chartRef = useRef<ChartJS<'line'>>(null);
 
   const enhancedOptions: ChartOptions<'line'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'line'>(),
     ...options,
     interaction: {
       mode: 'index',
@@ -400,7 +423,7 @@ export function LineChart({
   };
 
   return (
-    <ChartContainer title={title} description={description} chartRef={chartRef}>
+    <ChartContainer title={title} description={description} chartRef={chartRef} onBase64Generated={onBase64Generated}>
       <Line ref={chartRef} data={enhancedData} options={enhancedOptions} />
     </ChartContainer>
   );
@@ -422,6 +445,7 @@ interface ScatterChartProps {
   title?: string;
   description?: string;
   showTrendline?: boolean;
+  onBase64Generated?: (base64: string) => void;
 }
 
 export function ScatterChart({ 
@@ -429,12 +453,13 @@ export function ScatterChart({
   options = {}, 
   title, 
   description,
-  showTrendline = false 
+  showTrendline = false,
+  onBase64Generated
 }: ScatterChartProps) {
   const chartRef = useRef<ChartJS<'scatter'>>(null);
 
   const enhancedOptions: ChartOptions<'scatter'> = {
-    ...defaultOptions,
+    ...getDefaultOptions<'scatter'>(),
     ...options,
     scales: {
       x: {
@@ -529,7 +554,7 @@ export function ScatterChart({
   };
 
   return (
-    <ChartContainer title={title} description={description} chartRef={chartRef}>
+    <ChartContainer title={title} description={description} chartRef={chartRef} onBase64Generated={onBase64Generated}>
       <Scatter ref={chartRef} data={enhancedData} options={enhancedOptions} />
     </ChartContainer>
   );
@@ -550,6 +575,7 @@ interface ChartDisplayProps {
     area?: boolean;
     showTrendline?: boolean;
   };
+  onBase64Generated?: (base64: string) => void;
 }
 
 export function ChartDisplay({ 
@@ -558,7 +584,8 @@ export function ChartDisplay({
   options = {}, 
   title, 
   description,
-  config = {}
+  config = {},
+  onBase64Generated
 }: ChartDisplayProps) {
   switch (type) {
     case 'bar':
@@ -570,6 +597,7 @@ export function ChartDisplay({
           description={description}
           stacked={config.stacked}
           horizontal={config.horizontal}
+          onBase64Generated={onBase64Generated}
         />
       );
     case 'pie':
@@ -580,6 +608,7 @@ export function ChartDisplay({
           title={title} 
           description={description}
           isDoughnut={config.isDoughnut}
+          onBase64Generated={onBase64Generated}
         />
       );
     case 'line':
@@ -591,6 +620,7 @@ export function ChartDisplay({
           description={description}
           smooth={config.smooth}
           area={config.area}
+          onBase64Generated={onBase64Generated}
         />
       );
     case 'scatter':
@@ -601,6 +631,7 @@ export function ChartDisplay({
           title={title} 
           description={description}
           showTrendline={config.showTrendline}
+          onBase64Generated={onBase64Generated}
         />
       );
     default:
