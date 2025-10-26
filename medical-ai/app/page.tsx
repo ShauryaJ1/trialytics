@@ -2,12 +2,18 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function ChatPage() {
+  // Stable session id used to dedupe chat history rows server-side
+  const sessionId = useMemo(
+    () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)),
+    []
+  );
+
   const { messages, sendMessage, status, error, stop } = useChat({
     transport: new DefaultChatTransport({
-      api: '/api/chat',
+      api: `/api/chat?sid=${sessionId}`,
     }),
   });
 
