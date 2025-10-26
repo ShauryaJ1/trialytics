@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { ArrowUp, MessageCircle } from 'lucide-react';
 
 const clinicalTrials = [
   {
@@ -9,7 +9,6 @@ const clinicalTrials = [
     title: "COVID-19 Clinical Trial",
     description: "Investigating novel therapeutic approaches for COVID-19 treatment and prevention strategies.",
     phase: "Phase III",
-    status: "Active",
     participants: "2,500+",
     duration: "18 months"
   },
@@ -18,7 +17,6 @@ const clinicalTrials = [
     title: "AIDS Clinical Trial",
     description: "Advanced HIV/AIDS treatment protocols and vaccine development research.",
     phase: "Phase II",
-    status: "Recruiting",
     participants: "1,200+",
     duration: "24 months"
   },
@@ -27,7 +25,6 @@ const clinicalTrials = [
     title: "Cancer Immunotherapy Trial",
     description: "Revolutionary CAR-T cell therapy for various cancer types and treatment resistance.",
     phase: "Phase I",
-    status: "Active",
     participants: "800+",
     duration: "36 months"
   },
@@ -36,27 +33,8 @@ const clinicalTrials = [
     title: "Alzheimer's Disease Study",
     description: "Novel biomarkers and therapeutic interventions for early-stage Alzheimer's disease.",
     phase: "Phase II",
-    status: "Recruiting",
     participants: "1,500+",
     duration: "30 months"
-  },
-  {
-    id: 5,
-    title: "Diabetes Management Trial",
-    description: "AI-powered glucose monitoring and personalized treatment optimization.",
-    phase: "Phase III",
-    status: "Active",
-    participants: "3,000+",
-    duration: "12 months"
-  },
-  {
-    id: 6,
-    title: "Mental Health Intervention",
-    description: "Digital therapeutics and AI-assisted mental health treatment protocols.",
-    phase: "Phase II",
-    status: "Recruiting",
-    participants: "900+",
-    duration: "18 months"
   }
 ];
 
@@ -64,44 +42,26 @@ export default function TrialsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <h1 className="text-5xl font-bold text-teal-900">Clinical Trials.</h1>
           <Link 
             href="/"
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
+            <ArrowUp className="w-4 h-4" />
+            Home
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Clinical Trials</h1>
-          <div></div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Active Clinical Trials
-          </h2>
-          <p className="text-lg text-gray-600">
-            Explore our comprehensive portfolio of clinical trials and research studies.
-          </p>
-        </div>
-
-        {/* Trial Cards Grid */}
+      {/* Trial Cards Grid */}
+      <div className="max-w-7xl mx-auto px-6 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clinicalTrials.map((trial) => (
             <div key={trial.id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-              <div className="flex justify-between items-start mb-4">
+              <div className="mb-4">
                 <h3 className="text-xl font-semibold text-gray-900">{trial.title}</h3>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  trial.status === 'Active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-blue-100 text-blue-800'
-                }`}>
-                  {trial.status}
-                </span>
               </div>
               
               <p className="text-gray-600 mb-4">{trial.description}</p>
@@ -123,13 +83,25 @@ export default function TrialsPage() {
               
               <Link 
                 href="/chat"
-                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
               >
                 <MessageCircle className="w-4 h-4" />
-                Start Chat
+                Continue Chat
               </Link>
             </div>
           ))}
+          
+          {/* Add New Trial Placeholder */}
+          <Link href="/chat">
+            <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center hover:border-gray-400 transition-colors cursor-pointer">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl text-gray-500">+</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-700 mb-2">Add New Trial</h3>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
     </div>

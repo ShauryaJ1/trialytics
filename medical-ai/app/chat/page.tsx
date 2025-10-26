@@ -16,7 +16,7 @@ import {
 import { Response } from '@/components/ai-elements/response';
 import { CodeBlock, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import { MessageWithAvatar } from './message-component';
-import { FileText, Image, FlaskConical, Upload, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react';
+import { FileText, FileText as Pdf, Database, Upload, CheckCircle2, XCircle, Clock, ArrowUp } from 'lucide-react';
 
 
 // Parse reasoning blocks from streaming text
@@ -92,7 +92,7 @@ function CodeExecutionResult({
    <div className="space-y-4">
      {displayCode && (
        <div>
-         <div className="text-sm font-medium text-medical/70 mb-3">Code:</div>
+         <div className="text-sm font-medium text-gray-600 mb-3">Code:</div>
          <CodeBlock code={displayCode} language="python" showLineNumbers={true}>
            <CodeBlockCopyButton />
          </CodeBlock>
@@ -102,14 +102,14 @@ function CodeExecutionResult({
 
      <div className={`rounded-xl p-5 border ${
        result.success
-         ? 'bg-white border-medical/10 shadow-sm'
+         ? 'bg-white border-gray-200 shadow-sm'
          : 'bg-white border-red-200 shadow-sm'
      }`}>
        <div className="flex items-center gap-3 mb-3">
          {result.success ? (
            <>
-             <CheckCircle2 className="w-5 h-5 text-medical" strokeWidth={2} />
-             <span className="font-medium text-medical">Execution Successful</span>
+            <CheckCircle2 className="w-5 h-5 text-gray-900" strokeWidth={2} />
+            <span className="font-medium text-gray-900">Execution Successful</span>
            </>
          ) : (
            <>
@@ -118,7 +118,7 @@ function CodeExecutionResult({
            </>
          )}
          {result.execution_time && (
-           <span className="text-sm text-medical/60 ml-auto flex items-center gap-1.5">
+           <span className="text-sm text-gray-900 ml-auto flex items-center gap-1.5">
              <Clock className="w-4 h-4" />
              {result.execution_time.toFixed(2)}s
            </span>
@@ -128,8 +128,8 @@ function CodeExecutionResult({
 
        {result.output && result.output.trim() && (
          <div className="mt-4">
-           <div className="text-sm font-medium text-medical/70 mb-2">Output:</div>
-           <pre className="bg-medical/5 p-4 rounded-lg border border-medical/10 overflow-x-auto text-sm font-mono text-medical">
+           <div className="text-sm font-medium text-gray-600 mb-2">Output:</div>
+           <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-x-auto text-sm font-mono text-gray-900">
              {result.output}
            </pre>
          </div>
@@ -165,13 +165,13 @@ function CodeAnalysisResult({
  };
 }) {
  return (
-   <div className="bg-white border border-medical/10 rounded-xl p-5 space-y-4 shadow-sm">
-     <div className="font-medium text-medical">Code Analysis</div>
+   <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4 shadow-sm">
+     <div className="font-medium text-gray-900">Code Analysis</div>
 
 
      {result.code && (
        <div>
-         <div className="text-sm font-medium text-medical/70 mb-3">Analyzed Code:</div>
+         <div className="text-sm font-medium text-gray-600 mb-3">Analyzed Code:</div>
          <CodeBlock code={result.code} language="python" showLineNumbers={false}>
            <CodeBlockCopyButton />
          </CodeBlock>
@@ -179,11 +179,11 @@ function CodeAnalysisResult({
      )}
 
 
-     <div className="grid grid-cols-2 gap-3 text-sm text-medical/80">
-       <div>Lines of code: <span className="font-medium text-medical">{result.lineCount}</span></div>
-       <div>Has imports: <span className="font-medium text-medical">{result.hasImports ? 'Yes' : 'No'}</span></div>
-       <div>Has print statements: <span className="font-medium text-medical">{result.hasPrintStatements ? 'Yes' : 'No'}</span></div>
-       <div>Has return statements: <span className="font-medium text-medical">{result.hasReturnStatements ? 'Yes' : 'No'}</span></div>
+     <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+       <div>Lines of code: <span className="font-medium text-gray-900">{result.lineCount}</span></div>
+       <div>Has imports: <span className="font-medium text-gray-900">{result.hasImports ? 'Yes' : 'No'}</span></div>
+       <div>Has print statements: <span className="font-medium text-gray-900">{result.hasPrintStatements ? 'Yes' : 'No'}</span></div>
+       <div>Has return statements: <span className="font-medium text-gray-900">{result.hasReturnStatements ? 'Yes' : 'No'}</span></div>
      </div>
 
 
@@ -201,8 +201,8 @@ function CodeAnalysisResult({
 
      {result.suggestions.length > 0 && (
        <div>
-         <div className="text-sm font-medium text-medical/70 mb-2">Suggestions:</div>
-         <ul className="list-disc list-inside text-sm text-medical/80 space-y-1">
+         <div className="text-sm font-medium text-gray-600 mb-2">Suggestions:</div>
+         <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
            {result.suggestions.map((suggestion, i) => (
              <li key={i}>{suggestion}</li>
            ))}
@@ -227,14 +227,14 @@ function CodeExamplesResult({
  };
 }) {
  return (
-   <div className="bg-white border border-medical/10 rounded-xl p-5 space-y-4 shadow-sm">
+   <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4 shadow-sm">
      <div className="flex items-center justify-between">
-       <div className="font-medium text-medical">Code Example</div>
-       <span className="text-xs bg-medical/10 text-medical px-3 py-1 rounded-full font-medium">
+       <div className="font-medium text-gray-900">Code Example</div>
+       <span className="text-xs bg-gray-100 text-gray-900 px-3 py-1 rounded-full font-medium">
          {result.category}
        </span>
      </div>
-     <div className="text-sm text-medical/80 mb-2">{result.example.name}</div>
+     <div className="text-sm text-gray-600 mb-2">{result.example.name}</div>
      <CodeBlock code={result.example.code} language="python" showLineNumbers={true}>
        <CodeBlockCopyButton />
      </CodeBlock>
@@ -245,8 +245,6 @@ function CodeExamplesResult({
 
 export default function CodeStreamChat() {
  const [input, setInput] = useState('');
- const [serverStatus, setServerStatus] = useState<any>(null);
- const [checkingServer, setCheckingServer] = useState(false);
   const { messages, sendMessage, status } = useChat<ExecuteCodeMessage>({
    transport: new DefaultChatTransport({
      api: '/api/chat/execute-code-stream',
@@ -255,129 +253,75 @@ export default function CodeStreamChat() {
  });
 
 
- // Check server status on mount
- useEffect(() => {
-   checkServerStatus();
- }, []);
 
 
- const checkServerStatus = async () => {
-   setCheckingServer(true);
-   try {
-     const res = await fetch('/api/chat/execute-code-stream');
-     const data = await res.json();
-     setServerStatus(data);
-   } catch (error) {
-     setServerStatus({ available: false, error: 'Failed to check server status' });
-   } finally {
-     setCheckingServer(false);
-   }
- };
-
-
- // Example prompts
- const examplePrompts = [
-   "Write and execute Python code to calculate the factorial of 10",
-   "Create a pandas DataFrame with sales data and calculate total revenue by category",
-   "Generate a matplotlib visualization showing sine and cosine waves",
-   "Analyze this code for improvements: print('hello')",
-   "Show me an example of machine learning code",
-   "Write code to scrape data from a public API",
- ];
 
 
  return (
-   <div className="flex flex-col h-screen bg-white font-sans">
+   <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
     {/* Header */}
-    <div className="bg-white border-b border-gray-100 px-8 py-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
+    <div className="bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-5xl font-bold text-teal-900 tracking-tight">Analysis Assistant.</h1>
+          
           <Link 
             href="/trials"
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowUp className="w-4 h-4" />
             Back to Trials
           </Link>
         </div>
-        <h1 className="text-2xl font-semibold text-medical tracking-tight">Medical AI Assistant</h1>
-        <p className="text-sm text-medical/60 mt-2 font-normal">
-          AI-powered analysis with real-time processing and secure data handling
-        </p>
-
-
-         {/* Server Status */}
-         <div className="mt-5 flex items-center gap-3">
-           <span className="text-sm text-medical/60">Server Status:</span>
-           {checkingServer ? (
-             <span className="text-sm text-medical/40">Checking...</span>
-           ) : (
-             <>
-               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                 serverStatus?.available
-                   ? 'bg-medical/10 text-medical'
-                   : 'bg-red-50 text-red-700'
-               }`}>
-                 {serverStatus?.available ? '● Online' : '● Offline'}
-               </span>
-               <button
-                 onClick={checkServerStatus}
-                 className="px-3 py-1 text-xs border border-medical/20 rounded-lg hover:bg-medical/5 text-medical transition-colors"
-               >
-                 Refresh
-               </button>
-             </>
-           )}
-         </div>
        </div>
      </div>
 
 
-     {/* Upload Cards Section */}
-     <div className="bg-white border-b border-gray-100 px-8 py-8">
-       <div className="max-w-6xl mx-auto">
+    {/* Upload Cards Section */}
+    <div className="bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-6">
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            {/* Medical Records Card */}
-           <button className="group relative bg-white border border-medical/10 rounded-2xl p-6 hover:border-medical/20 hover:shadow-lg transition-all duration-300 text-left">
+           <button className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all duration-300 text-left">
              <div className="flex items-start justify-between mb-4">
-               <div className="w-12 h-12 rounded-xl bg-medical/5 flex items-center justify-center group-hover:bg-medical/10 transition-colors">
-                 <FileText className="w-6 h-6 text-medical" strokeWidth={2} />
+               <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
+                 <FileText className="w-6 h-6 text-gray-900" strokeWidth={2} />
                </div>
-               <Upload className="w-5 h-5 text-medical/40 group-hover:text-medical/60 transition-colors" />
+               <Upload className="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
              </div>
-             <h3 className="font-medium text-medical mb-2">Medical Records</h3>
-             <p className="text-sm text-medical/60 leading-relaxed">
-               Upload patient records, reports, and clinical documents for analysis
+             <h3 className="font-medium text-gray-900 mb-2">Clinical Trial Protocol</h3>
+             <p className="text-sm text-gray-900 leading-relaxed">
+               Upload the clinical trial protocol for context.
              </p>
            </button>
 
 
            {/* Images & Scans Card */}
-           <button className="group relative bg-white border border-medical/10 rounded-2xl p-6 hover:border-medical/20 hover:shadow-lg transition-all duration-300 text-left">
+           <button className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all duration-300 text-left">
              <div className="flex items-start justify-between mb-4">
-               <div className="w-12 h-12 rounded-xl bg-medical/5 flex items-center justify-center group-hover:bg-medical/10 transition-colors">
-                 <Image className="w-6 h-6 text-medical" strokeWidth={2} />
+               <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
+                 <Pdf className="w-6 h-6 text-gray-900" strokeWidth={2} />
                </div>
-               <Upload className="w-5 h-5 text-medical/40 group-hover:text-medical/60 transition-colors" />
+               <Upload className="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
              </div>
-             <h3 className="font-medium text-medical mb-2">Images & Scans</h3>
-             <p className="text-sm text-medical/60 leading-relaxed">
-               Upload X-rays, MRI, CT scans, and other diagnostic imaging files
+             <h3 className="font-medium text-gray-900 mb-2">Statistical Analysis Protocol</h3>
+             <p className="text-sm text-gray-900 leading-relaxed">
+               Upload the SAP to conduct the statistical analysis.
              </p>
            </button>
 
 
            {/* Lab Results Card */}
-           <button className="group relative bg-white border border-medical/10 rounded-2xl p-6 hover:border-medical/20 hover:shadow-lg transition-all duration-300 text-left">
+           <button className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all duration-300 text-left">
              <div className="flex items-start justify-between mb-4">
-               <div className="w-12 h-12 rounded-xl bg-medical/5 flex items-center justify-center group-hover:bg-medical/10 transition-colors">
-                 <FlaskConical className="w-6 h-6 text-medical" strokeWidth={2} />
+               <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
+                 <Database className="w-6 h-6 text-gray-900" strokeWidth={2} />
                </div>
-               <Upload className="w-5 h-5 text-medical/40 group-hover:text-medical/60 transition-colors" />
+               <Upload className="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
              </div>
-             <h3 className="font-medium text-medical mb-2">Lab Results</h3>
-             <p className="text-sm text-medical/60 leading-relaxed">
-               Upload laboratory test results, blood work, and diagnostic data
+             <h3 className="font-medium text-gray-900 mb-2">Raw Data</h3>
+             <p className="text-sm text-gray-900 leading-relaxed">
+               Upload data extracted from the clinical trial.
              </p>
            </button>
          </div>
@@ -385,34 +329,22 @@ export default function CodeStreamChat() {
      </div>
 
 
-     {/* Messages */}
-     <div className="flex-1 overflow-y-auto px-8 py-8 bg-gray-50/30">
-       <div className="max-w-6xl mx-auto space-y-5">
+    {/* Messages */}
+    <div className="flex-1 overflow-y-auto py-8" style={{ minHeight: 'calc(100vh - 200px)' }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-3 space-y-5">
          {messages.length === 0 && (
            <div className="text-center py-16">
-             <div className="text-medical/20 mb-8">
+             <div className="text-gray-400 mb-8">
                <svg className="w-20 h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                </svg>
              </div>
-             <h3 className="text-lg font-medium text-medical mb-3">Ready to Assist</h3>
-             <p className="text-sm text-medical/60 mb-8 max-w-md mx-auto leading-relaxed">
+             <h3 className="text-lg font-medium text-gray-900 mb-3">Ready to Assist</h3>
+             <p className="text-sm text-gray-900 mb-8 max-w-md mx-auto leading-relaxed">
                Upload medical documents above or ask questions to begin your analysis
              </p>
-             <div className="flex flex-wrap gap-3 justify-center max-w-2xl mx-auto">
-               {examplePrompts.slice(0, 3).map((prompt, i) => (
-                 <button
-                   key={i}
-                   onClick={() => {
-                     setInput(prompt);
-                     sendMessage({ text: prompt });
-                   }}
-                   className="px-4 py-2 text-xs bg-white text-medical border border-medical/10 rounded-lg hover:border-medical/20 hover:shadow-sm transition-all"
-                 >
-                   {prompt}
-                 </button>
-               ))}
-             </div>
            </div>
          )}
 
@@ -470,8 +402,8 @@ export default function CodeStreamChat() {
                          return (
                            <div key={part.toolCallId} className="mt-4">
                              {part.state === 'input-streaming' && (
-                               <div className="flex items-center gap-3 text-medical/60">
-                                 <div className="animate-spin h-4 w-4 border-2 border-medical border-t-transparent rounded-full"></div>
+                               <div className="flex items-center gap-3 text-gray-900">
+                                 <div className="animate-spin h-4 w-4 border-2 border-gray-200 border-t-transparent rounded-full"></div>
                                  <span className="text-sm">Executing code...</span>
                                </div>
                              )}
@@ -489,8 +421,8 @@ export default function CodeStreamChat() {
                          return (
                            <div key={part.toolCallId} className="mt-4">
                              {part.state === 'input-streaming' && (
-                               <div className="flex items-center gap-3 text-medical/60">
-                                 <div className="animate-spin h-4 w-4 border-2 border-medical border-t-transparent rounded-full"></div>
+                               <div className="flex items-center gap-3 text-gray-900">
+                                 <div className="animate-spin h-4 w-4 border-2 border-gray-200 border-t-transparent rounded-full"></div>
                                  <span className="text-sm">Analyzing code...</span>
                                </div>
                              )}
@@ -505,8 +437,8 @@ export default function CodeStreamChat() {
                          return (
                            <div key={part.toolCallId} className="mt-4">
                              {part.state === 'input-streaming' && (
-                               <div className="flex items-center gap-3 text-medical/60">
-                                 <div className="animate-spin h-4 w-4 border-2 border-medical border-t-transparent rounded-full"></div>
+                               <div className="flex items-center gap-3 text-gray-900">
+                                 <div className="animate-spin h-4 w-4 border-2 border-gray-200 border-t-transparent rounded-full"></div>
                                  <span className="text-sm">Loading examples...</span>
                                </div>
                              )}
@@ -521,12 +453,12 @@ export default function CodeStreamChat() {
                          if (part.type?.startsWith('tool-')) {
                            const toolPart = part as any;
                            return (
-                             <div key={toolPart.toolCallId || key} className="mt-4 p-4 bg-white border border-medical/10 rounded-xl">
-                               <div className="text-xs text-medical/60 font-medium">
+                             <div key={toolPart.toolCallId || key} className="mt-4 p-4 bg-white border border-gray-200 rounded-xl">
+                               <div className="text-xs text-gray-900 font-medium">
                                  Tool: {part.type.replace('tool-', '')}
                                </div>
                                {toolPart.state === 'output-available' && (
-                                 <pre className="text-xs mt-3 text-medical/80 font-mono">
+                                 <pre className="text-xs mt-3 text-gray-600 font-mono">
                                    {JSON.stringify(toolPart.output, null, 2)}
                                  </pre>
                                )}
@@ -544,33 +476,23 @@ export default function CodeStreamChat() {
            <MessageWithAvatar from="assistant" variant="flat" name="Assistant">
              <div className="flex items-center gap-3">
                <div className="flex gap-1.5">
-                 <div className="w-2 h-2 bg-medical/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                 <div className="w-2 h-2 bg-medical/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                 <div className="w-2 h-2 bg-medical/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                </div>
-               <span className="text-sm text-medical/60">Processing...</span>
+               <span className="text-sm text-gray-900">Processing...</span>
              </div>
            </MessageWithAvatar>
          )}
-       </div>
+          </div>
+        </div>
+      </div>
      </div>
 
 
-     {/* Input */}
-     <div className="border-t border-gray-100 bg-white px-8 py-6">
-       <div className="max-w-6xl mx-auto">
-         {/* Example prompts */}
-         <div className="mb-4 flex flex-wrap gap-2">
-           {examplePrompts.map((prompt, i) => (
-             <button
-               key={i}
-               onClick={() => setInput(prompt)}
-               className="px-3 py-1.5 text-xs bg-medical/5 text-medical/70 rounded-lg hover:bg-medical/10 hover:text-medical transition-colors border border-medical/10"
-             >
-               {prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
-             </button>
-           ))}
-         </div>
+    {/* Input */}
+    <div className="bg-gray-50 py-6">
+      <div className="max-w-7xl mx-auto px-6">
 
 
          {/* Input form */}
@@ -589,13 +511,13 @@ export default function CodeStreamChat() {
              value={input}
              onChange={(e) => setInput(e.target.value)}
              placeholder="Ask a question or describe what you need analyzed..."
-             disabled={status === 'streaming' || !serverStatus?.available}
-             className="flex-1 px-5 py-3.5 border border-medical/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-medical/20 focus:border-medical/30 disabled:bg-gray-50 disabled:text-medical/40 text-medical placeholder:text-medical/40 transition-all"
+             disabled={status === 'streaming'}
+             className="flex-1 px-5 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900 placeholder:text-gray-500 transition-all"
            />
            <button
              type="submit"
-             disabled={!input.trim() || status === 'streaming' || !serverStatus?.available}
-             className="px-8 py-3.5 bg-medical text-white rounded-xl hover:bg-medical/90 disabled:bg-medical/20 disabled:cursor-not-allowed transition-all font-medium shadow-sm hover:shadow-md"
+             disabled={!input.trim() || status === 'streaming'}
+             className="px-8 py-3.5 bg-teal-600 text-white rounded-xl hover:bg-teal-600/90 disabled:bg-gray-200 disabled:cursor-not-allowed transition-all font-medium shadow-sm hover:shadow-md"
            >
              {status === 'streaming' ? (
                <div className="flex items-center gap-2">
@@ -609,12 +531,6 @@ export default function CodeStreamChat() {
          </form>
 
 
-         {!serverStatus?.available && (
-           <p className="mt-3 text-xs text-red-600 flex items-center gap-2">
-             <XCircle className="w-3.5 h-3.5" />
-             Server offline. Code execution unavailable.
-           </p>
-         )}
        </div>
      </div>
    </div>
