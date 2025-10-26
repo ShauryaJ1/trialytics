@@ -80,7 +80,7 @@ export default function CodeExecutor() {
             <div>
               <h3 className="font-semibold mb-1">Modal Server Status</h3>
               <p className="text-sm text-gray-600">
-                {serverStatus?.modalServerUrl || 'http://3.212.17.117:8000'}
+                {serverStatus?.modalServerUrl || 'Modal Server'}
               </p>
             </div>
             <div className="flex items-center gap-3">

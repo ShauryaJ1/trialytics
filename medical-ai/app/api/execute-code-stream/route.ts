@@ -31,7 +31,7 @@ const tools = {
       
       try {
         // Call the modal_server execute endpoint
-        const response = await fetch('http://3.212.17.117:8000/execute', {
+        const response = await fetch(`${process.env.MODAL_BASE_URL || 'cooked'}/execute`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -337,7 +337,7 @@ export async function GET() {
   try {
     console.log('Checking Modal server health...');
     
-    const response = await fetch('http://3.212.17.117:8000/health', {
+    const response = await fetch(`${process.env.MODAL_BASE_URL || 'cooked'}/health`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -360,7 +360,7 @@ export async function GET() {
     
     return Response.json({
       available: true,
-      modalServerUrl: 'http://3.212.17.117:8000',
+      modalServerUrl: process.env.MODAL_BASE_URL || 'cooked',
       health,
     });
   } catch (error) {
