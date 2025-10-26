@@ -19,35 +19,19 @@ const clinicalTrials = [
     phase: "Phase II",
     participants: "1,200+",
     duration: "24 months"
-  },
-  {
-    id: 3,
-    title: "Cancer Immunotherapy Trial",
-    description: "Revolutionary CAR-T cell therapy for various cancer types and treatment resistance.",
-    phase: "Phase I",
-    participants: "800+",
-    duration: "36 months"
-  },
-  {
-    id: 4,
-    title: "Alzheimer's Disease Study",
-    description: "Novel biomarkers and therapeutic interventions for early-stage Alzheimer's disease.",
-    phase: "Phase II",
-    participants: "1,500+",
-    duration: "30 months"
   }
 ];
 
 export default function TrialsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 page-transition">
       {/* Header */}
       <header className="bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <h1 className="text-5xl font-bold text-teal-900">Clinical Trials.</h1>
           <Link 
             href="/"
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-all duration-300 smooth-hover"
           >
             <ArrowUp className="w-4 h-4" />
             Home
@@ -59,7 +43,10 @@ export default function TrialsPage() {
       <div className="max-w-7xl mx-auto px-6 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clinicalTrials.map((trial) => (
-            <div key={trial.id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div 
+              key={trial.id} 
+              className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 smooth-hover card-enter animate-scale-in"
+            >
               <div className="mb-4">
                 <h3 className="text-xl font-semibold text-gray-900">{trial.title}</h3>
               </div>
@@ -93,7 +80,7 @@ export default function TrialsPage() {
           
           {/* Add New Trial Placeholder */}
           <Link href="/chat">
-            <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center hover:border-gray-400 transition-colors cursor-pointer">
+            <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center hover:border-gray-400 transition-all duration-300 smooth-hover cursor-pointer animate-scale-in">
               <div className="text-center">
                 <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl text-gray-500">+</span>

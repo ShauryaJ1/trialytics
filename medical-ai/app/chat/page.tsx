@@ -15,8 +15,9 @@ import {
 } from '@/components/ai-elements/reasoning';
 import { Response } from '@/components/ai-elements/response';
 import { CodeBlock, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
-import { MessageWithAvatar } from './message-component';
-import { FileText, FileText as Pdf, Database, Upload, CheckCircle2, XCircle, Clock, ArrowUp } from 'lucide-react';
+import { MessageWithAvatar } from '../code-stream/message-component';
+import { ArrowUp, ChevronRight, ChevronDown, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
 
 
 // Parse reasoning blocks from streaming text
@@ -244,26 +245,85 @@ function CodeExamplesResult({
 
 
 export default function CodeStreamChat() {
- const [input, setInput] = useState('');
-  const { messages, sendMessage, status } = useChat<ExecuteCodeMessage>({
+  const [input, setInput] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [showFilePanel, setShowFilePanel] = useState(true);
+  
+  const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
    transport: new DefaultChatTransport({
      api: '/api/chat/execute-code-stream',
    }),
    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
  });
 
+  // Wrap sendMessage to inject file context
+  const sendMessage = (message: { text: string }) => {
+    if (uploadedFiles.length > 0) {
+      // Create file context system message
+      const fileContext = `## 📁 Uploaded Files Available:
 
+You have access to ${uploadedFiles.length} file(s) that the user has uploaded. Use these presigned URLs in your Python code:
 
+${uploadedFiles.map((file, index) => `
+### File ${index + 1}: ${file.name}
+- **Type**: ${file.type || 'Unknown'}
+- **S3 Key**: ${file.s3Key}
+- **Presigned URL Variable**: url_${index + 1}
+
+\`\`\`python
+url_${index + 1} = "${file.presignedUrl}"
+\`\`\`
+
+${file.name.endsWith('.csv') ? `
+# Load as DataFrame:
+import pandas as pd
+import requests
+import io
+response = requests.get(url_${index + 1})
+df = pd.read_csv(io.BytesIO(response.content))
+` : file.name.endsWith('.json') ? `
+# Load JSON:
+import json
+import requests
+response = requests.get(url_${index + 1})
+data = json.loads(response.content)
+` : file.name.endsWith('.pdf') ? `
+# Load PDF:
+import PyPDF2
+import requests
+import io
+response = requests.get(url_${index + 1})
+pdf_reader = PyPDF2.PdfReader(io.BytesIO(response.content))
+` : `
+# Load file:
+import requests
+response = requests.get(url_${index + 1})
+content = response.content
+`}
+`).join('\n')}
+
+**Important**: Always use these exact presigned URLs when loading the files. They expire after 1 hour.`;
+
+      // Prepend file context to the user message
+      const enhancedMessage = `${fileContext}
+
+User request: ${message.text}`;
+      
+      return originalSendMessage({ text: enhancedMessage });
+    }
+    
+    return originalSendMessage(message);
+  };
 
 
 
  return (
-   <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
+   <div className="flex flex-col min-h-screen bg-gray-50 font-sans page-transition">
     {/* Header */}
     <div className="bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-5xl font-bold text-teal-900 tracking-tight">Analysis Assistant.</h1>
+          <h1 className="text-5xl font-bold text-teal-900">Analysis Assistant.</h1>
           
           <Link 
             href="/trials"
@@ -277,63 +337,44 @@ export default function CodeStreamChat() {
      </div>
 
 
-    {/* Upload Cards Section */}
-    <div className="bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-6">
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           {/* Medical Records Card */}
-           <button className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all duration-300 text-left">
-             <div className="flex items-start justify-between mb-4">
-               <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-                 <FileText className="w-6 h-6 text-gray-900" strokeWidth={2} />
-               </div>
-               <Upload className="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
-             </div>
-             <h3 className="font-medium text-gray-900 mb-2">Clinical Trial Protocol</h3>
-             <p className="text-sm text-gray-900 leading-relaxed">
-               Upload the clinical trial protocol for context.
-             </p>
-           </button>
 
-
-           {/* Images & Scans Card */}
-           <button className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all duration-300 text-left">
-             <div className="flex items-start justify-between mb-4">
-               <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-                 <Pdf className="w-6 h-6 text-gray-900" strokeWidth={2} />
-               </div>
-               <Upload className="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
-             </div>
-             <h3 className="font-medium text-gray-900 mb-2">Statistical Analysis Protocol</h3>
-             <p className="text-sm text-gray-900 leading-relaxed">
-               Upload the SAP to conduct the statistical analysis.
-             </p>
-           </button>
-
-
-           {/* Lab Results Card */}
-           <button className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-300 hover:shadow-lg transition-all duration-300 text-left">
-             <div className="flex items-start justify-between mb-4">
-               <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-                 <Database className="w-6 h-6 text-gray-900" strokeWidth={2} />
-               </div>
-               <Upload className="w-5 h-5 text-gray-500 group-hover:text-gray-900 transition-colors" />
-             </div>
-             <h3 className="font-medium text-gray-900 mb-2">Raw Data</h3>
-             <p className="text-sm text-gray-900 leading-relaxed">
-               Upload data extracted from the clinical trial.
-             </p>
-           </button>
+   {/* File Upload Panel */}
+   <div className="bg-gray-50 border-b border-gray-200">
+     <div className="max-w-7xl mx-auto px-8 py-3">
+       <button
+         onClick={() => setShowFilePanel(!showFilePanel)}
+         className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+       >
+         {showFilePanel ? (
+           <ChevronDown className="h-4 w-4" />
+         ) : (
+           <ChevronRight className="h-4 w-4" />
+         )}
+         File Uploads
+         {uploadedFiles.length > 0 && (
+           <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+             {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''}
+           </span>
+         )}
+       </button>
+       
+       {showFilePanel && (
+         <div className="mt-4 pb-2">
+           <FileUploadS3
+             uploadedFiles={uploadedFiles}
+             onFilesUploaded={setUploadedFiles}
+             onRemoveFile={(index) => {
+               setUploadedFiles(files => files.filter((_, i) => i !== index));
+             }}
+           />
          </div>
-       </div>
+       )}
      </div>
+   </div>
 
-
-    {/* Messages */}
-    <div className="flex-1 overflow-y-auto py-8" style={{ minHeight: 'calc(100vh - 200px)' }}>
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-3 space-y-5">
+     {/* Messages */}
+     <div className="flex-1 px-8 py-8 overflow-hidden transition-all duration-300">
+       <div className="max-w-7xl mx-auto space-y-5 h-full">
          {messages.length === 0 && (
            <div className="text-center py-16">
              <div className="text-gray-400 mb-8">
@@ -484,15 +525,13 @@ export default function CodeStreamChat() {
              </div>
            </MessageWithAvatar>
          )}
-          </div>
-        </div>
-      </div>
+       </div>
      </div>
 
 
-    {/* Input */}
-    <div className="bg-gray-50 py-6">
-      <div className="max-w-7xl mx-auto px-6">
+     {/* Input */}
+     <div className="border-t border-gray-200 bg-gray-50 px-8 py-6">
+       <div className="max-w-7xl mx-auto">
 
 
          {/* Input form */}
@@ -504,7 +543,7 @@ export default function CodeStreamChat() {
                setInput('');
              }
            }}
-           className="flex gap-3"
+           className="flex gap-3 transition-all duration-300"
          >
            <input
              type="text"
