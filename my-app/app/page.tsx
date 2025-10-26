@@ -16,6 +16,12 @@ export default function Home() {
           <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
             <div className="flex gap-5 items-center font-semibold">
               <Link href={"/"}>Next.js Supabase Starter</Link>
+              <Link href={"/chat"} className="text-blue-600 hover:text-blue-800">
+                Chat
+              </Link>
+              <Link href={"/test"} className="text-green-600 hover:text-green-800">
+                Test vLLM
+              </Link>
               <div className="flex items-center gap-2">
                 <DeployButton />
               </div>
