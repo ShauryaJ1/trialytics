@@ -27,6 +27,7 @@ import {
 import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { ChartDisplay } from './chart-components';
+import { MarkdownReport } from './report-component';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -226,6 +227,7 @@ export default function CodeStreamChat() {
   const [input, setInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePanel, setShowFilePanel] = useState(false);
+  const [chartImages, setChartImages] = useState<{ [key: string]: string }>({});
   
   const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
@@ -321,10 +323,7 @@ User request: ${message.text}`;
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800">Code Execution with Streaming</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            AI-powered Python code execution with real-time streaming and visual feedback
-          </p>
+          
         </div>
       </div>
 
@@ -372,9 +371,9 @@ User request: ${message.text}`;
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to execute code</h3>
+              <h3 className="text-lg font-medium text-gray-700 mb-2">Ready to help</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Ask me to write and execute Python code, or try one of the examples below
+                Ask me to help with your clinical trial
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {examplePrompts.slice(0, 3).map((prompt, i) => (
@@ -505,12 +504,46 @@ User request: ${message.text}`;
                                   title={part.output.title}
                                   description={part.output.description}
                                   config={part.output.config}
+                                  onBase64Generated={(base64) => {
+                                    // Store base64 image for report references
+                                    if (part.output.chartId) {
+                                      setChartImages(prev => ({ ...prev, [part.output.chartId]: base64 }));
+                                    }
+                                  }}
                                 />
                               )}
                               {part.state === 'output-available' && part.output && !part.output.success && (
                                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
                                   <div className="text-red-800 font-medium">Chart Error</div>
                                   <div className="text-sm text-red-600 mt-1">Failed to create chart</div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        
+                        case 'tool-generateMarkdownReport':
+                          return (
+                            <div key={part.toolCallId} className="mt-3">
+                              {part.state === 'input-streaming' && (
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
+                                  <span className="text-sm">Generating report...</span>
+                                </div>
+                              )}
+                              {part.state === 'output-available' && part.output && part.output.success && (
+                                <MarkdownReport
+                                  content={part.output.content}
+                                  title={part.output.title}
+                                  description={part.output.description}
+                                  chartData={part.output.chartData}
+                                  images={chartImages}
+                                  metadata={part.output.metadata}
+                                />
+                              )}
+                              {part.state === 'output-available' && part.output && !part.output.success && (
+                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                                  <div className="text-red-800 font-medium">Report Generation Error</div>
+                                  <div className="text-sm text-red-600 mt-1">Failed to generate report</div>
                                 </div>
                               )}
                             </div>
