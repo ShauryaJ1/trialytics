@@ -16,7 +16,6 @@ export async function POST(req: Request) {
       model: qwenModel,
       messages: convertToModelMessages(messages),
       temperature: 0.7,
-      maxOutputTokens: 2000, // Use maxOutputTokens per the AI SDK docs
     });
 
     // Return as a UI message streaming response

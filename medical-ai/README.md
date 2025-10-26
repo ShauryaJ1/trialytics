@@ -12,6 +12,7 @@ A Next.js application using Vercel AI SDK with OpenAI-compatible provider to con
 - ⚡ Edge runtime for optimal performance
 - 🔧 Structured object generation with schemas
 - 🛠️ Tool calling capabilities for enhanced interactions
+- 🐍 **Python code execution via Modal sandbox** (NEW)
 
 ## Tech Stack
 
@@ -65,14 +66,19 @@ medical-ai/
 │   │   │   └── route.ts          # Chat API endpoint with streaming
 │   │   ├── generate-object/
 │   │   │   └── route.ts          # Structured object generation API
-│   │   └── tool-call/
-│   │       └── route.ts          # Tool calling API with weather, calculator, search
+│   │   ├── tool-call/
+│   │   │   └── route.ts          # Tool calling API with weather, calculator, search
+│   │   └── execute-code/
+│   │       └── route.ts          # Code execution API via Modal sandbox
 │   ├── page.tsx                  # Main chat interface
 │   ├── structured/
 │   │   └── page.tsx              # Test page for advanced features
+│   ├── code-executor/
+│   │   └── page.tsx              # Code execution interface
 │   └── layout.tsx                # Root layout
 ├── lib/
 │   └── ai-provider.ts            # VLLM provider configuration
+├── test-execute-code-api.js      # Test script for code execution API
 └── package.json
 ```
 
@@ -123,6 +129,54 @@ The application supports tool calling, allowing the model to use functions like:
 - **Search Tool**: Simulate information searches
 
 Test these features at `/structured` in the UI.
+
+### Code Execution with Modal
+
+The application now includes a powerful code execution feature that allows the AI agent to write and execute Python code in a sandboxed Modal environment. This feature is available at `/code-executor`.
+
+#### Features:
+- **Sandboxed Execution**: Python code runs in an isolated Modal container
+- **Pre-installed Packages**: Common data science libraries (NumPy, Pandas, Matplotlib, etc.) are available
+- **AI-Assisted**: The AI can write, analyze, and execute code based on natural language prompts
+- **Real-time Results**: See execution output, errors, and timing information
+
+#### Available Tools:
+1. **executeCode**: Executes Python code in the Modal sandbox
+2. **analyzeCode**: Performs basic static analysis on Python code
+3. **getExamples**: Provides example code snippets for common tasks
+
+#### API Endpoint: `/api/execute-code`
+
+**Health Check (GET):**
+```bash
+curl http://localhost:3000/api/execute-code
+```
+
+**Execute Code (POST):**
+```javascript
+fetch('/api/execute-code', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    prompt: 'Calculate the factorial of 10 and print the result',
+    includeExamples: false
+  })
+});
+```
+
+#### Testing:
+Run the test script to verify the code execution functionality:
+```bash
+node test-execute-code-api.js
+```
+
+#### Configuration:
+The Modal server endpoint is configured in `/api/execute-code/route.ts`:
+```typescript
+const response = await fetch('http://3.212.17.117:8000/execute', {
+  // ... request configuration
+});
+```
 
 ## Customization
 
