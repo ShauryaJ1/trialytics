@@ -22,6 +22,11 @@ Parameters:
     Type: String
     Default: latest
   
+  DeploymentTimestamp:
+    Description: Deployment timestamp to force updates
+    Type: String
+    Default: "1"
+  
   EnableSSH:
     Description: Enable SSH access from anywhere (0.0.0.0/0)
     Type: String
@@ -218,6 +223,9 @@ Resources:
           #!/bin/bash
           set -e
           
+          # Deployment timestamp: ${DeploymentTimestamp}
+          # This forces CloudFormation to update the instance
+          
           # Update system
           apt-get update
           apt-get upgrade -y
@@ -259,6 +267,10 @@ Resources:
           # Pull and run the Docker container
           docker pull ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
           
+          # Stop and remove existing container if it exists
+          docker stop modal-server 2>/dev/null || true
+          docker rm modal-server 2>/dev/null || true
+          
           # Run the container with restart policy
           docker run -d \
             --name modal-server \
@@ -296,8 +308,38 @@ Resources:
             -v /var/lib/docker/containers:/var/lib/docker/containers \
             amazon/cloudwatch-agent:latest
           
+          # Create update script for easy container updates
+          cat > /usr/local/bin/update-modal-server.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+          echo "Updating Modal server container..."
+          
+          # Login to ECR
+          aws ecr get-login-password --region ${AWS::Region} | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          
+          # Pull latest image
+          docker pull ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
+          
+          # Stop and remove old container
+          docker stop modal-server
+          docker rm modal-server
+          
+          # Run new container
+          docker run -d \
+            --name modal-server \
+            --restart unless-stopped \
+            -p 80:8000 \
+            -p 8000:8000 \
+            ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryName}:${ImageTag}
+          
+          echo "Modal server updated successfully!"
+          SCRIPT
+          
+          chmod +x /usr/local/bin/update-modal-server.sh
+          
           # Log setup completion
           echo "Modal server setup completed at $(date)" >> /var/log/setup.log
+          echo "Deployment timestamp: ${DeploymentTimestamp}" >> /var/log/setup.log
           
       Tags:
         - Key: Name
