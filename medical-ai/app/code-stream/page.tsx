@@ -24,6 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { FileUploadS3, type UploadedFile } from '@/components/file-upload-s3';
+import { ChevronRight, ChevronDown } from 'lucide-react';
 
 // Parse reasoning blocks from streaming text
 function parseStreamingReasoning(text: string): {
@@ -221,23 +223,93 @@ function TableDisplay({
 
 export default function CodeStreamChat() {
   const [input, setInput] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [showFilePanel, setShowFilePanel] = useState(false);
   
-  const { messages, sendMessage, status } = useChat<ExecuteCodeMessage>({
+  const { messages, sendMessage: originalSendMessage, status } = useChat<ExecuteCodeMessage>({
     transport: new DefaultChatTransport({
       api: '/api/execute-code-stream',
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  // Example prompts
-  const examplePrompts = [
-    "Create a pandas DataFrame with sales data and display it in a table",
-    "Compare Python, JavaScript, and Java programming languages in a table",
-    "Show a table of different sorting algorithms with their time complexities",
-    "Create a comparison table of popular machine learning algorithms",
-    "Generate sales data and show summary statistics in a formatted table",
-    "Write Python code to analyze data and present results in a table",
-  ];
+  // Wrap sendMessage to inject file context
+  const sendMessage = (message: { text: string }) => {
+    if (uploadedFiles.length > 0) {
+      // Create file context system message
+      const fileContext = `## 📁 Uploaded Files Available:
+
+You have access to ${uploadedFiles.length} file(s) that the user has uploaded. Use these presigned URLs in your Python code:
+
+${uploadedFiles.map((file, index) => `
+### File ${index + 1}: ${file.name}
+- **Type**: ${file.type || 'Unknown'}
+- **S3 Key**: ${file.s3Key}
+- **Presigned URL Variable**: url_${index + 1}
+
+\`\`\`python
+url_${index + 1} = "${file.presignedUrl}"
+\`\`\`
+
+${file.name.endsWith('.csv') ? `
+# Load as DataFrame:
+import pandas as pd
+import requests
+import io
+response = requests.get(url_${index + 1})
+df = pd.read_csv(io.BytesIO(response.content))
+` : file.name.endsWith('.json') ? `
+# Load JSON:
+import json
+import requests
+response = requests.get(url_${index + 1})
+data = json.loads(response.content)
+` : file.name.endsWith('.pdf') ? `
+# Load PDF:
+import PyPDF2
+import requests
+import io
+response = requests.get(url_${index + 1})
+pdf_reader = PyPDF2.PdfReader(io.BytesIO(response.content))
+` : `
+# Load file:
+import requests
+response = requests.get(url_${index + 1})
+content = response.content
+`}
+`).join('\n')}
+
+**Important**: Always use these exact presigned URLs when loading the files. They expire after 1 hour.`;
+
+      // Prepend file context to the user message
+      const enhancedMessage = `${fileContext}
+
+User request: ${message.text}`;
+      
+      return originalSendMessage({ text: enhancedMessage });
+    }
+    
+    return originalSendMessage(message);
+  };
+
+  // Example prompts - dynamic based on whether files are uploaded
+  const examplePrompts = uploadedFiles.length > 0 
+    ? [
+        `Load and analyze ${uploadedFiles[0].name}`,
+        `Show the first 10 rows of the uploaded data`,
+        `Calculate summary statistics for the uploaded file`,
+        `Check for missing values and data types in the uploaded dataset`,
+        `Create visualizations from the uploaded data`,
+        `Perform data cleaning and preprocessing on the uploaded file`,
+      ]
+    : [
+        "Create a pandas DataFrame with sales data and display it in a table",
+        "Compare Python, JavaScript, and Java programming languages in a table",
+        "Show a table of different sorting algorithms with their time complexities",
+        "Create a comparison table of popular machine learning algorithms",
+        "Generate sales data and show summary statistics in a formatted table",
+        "Write Python code to analyze data and present results in a table",
+      ];
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -248,6 +320,40 @@ export default function CodeStreamChat() {
           <p className="text-sm text-gray-600 mt-1">
             AI-powered Python code execution with real-time streaming and visual feedback
           </p>
+        </div>
+      </div>
+
+      {/* File Upload Panel */}
+      <div className="bg-white border-b">
+        <div className="max-w-4xl mx-auto px-6 py-3">
+          <button
+            onClick={() => setShowFilePanel(!showFilePanel)}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+          >
+            {showFilePanel ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            File Uploads
+            {uploadedFiles.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+                {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </button>
+          
+          {showFilePanel && (
+            <div className="mt-4 pb-2">
+              <FileUploadS3
+                uploadedFiles={uploadedFiles}
+                onFilesUploaded={setUploadedFiles}
+                onRemoveFile={(index) => {
+                  setUploadedFiles(files => files.filter((_, i) => i !== index));
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 

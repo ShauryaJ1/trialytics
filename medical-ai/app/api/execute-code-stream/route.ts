@@ -125,7 +125,9 @@ export type ExecuteCodeTools = InferUITools<typeof tools>;
 export type ExecuteCodeMessage = UIMessage<never, UIDataTypes, ExecuteCodeTools>;
 
 export async function POST(request: Request) {
-  const { messages }: { messages: ExecuteCodeMessage[] } = await request.json();
+  const { messages }: { 
+    messages: ExecuteCodeMessage[];
+  } = await request.json();
 
   console.log('Processing streaming request with messages:', messages.length);
 
@@ -139,13 +141,16 @@ export async function POST(request: Request) {
 
 ### 1. executeCode
 - Executes Python code in a sandboxed Modal environment
-- Has common data science packages pre-installed (pandas, numpy, scipy, matplotlib, seaborn, scikit-learn, requests, beautifulsoup4, etc.)
+- Has common data science packages pre-installed (pandas, numpy, scipy, matplotlib, seaborn, scikit-learn, requests, beautifulsoup4, PyPDF2, pyreadstat, pdfplumber, etc.)
 - IMPORTANT: Always use print() statements to display ALL results, outputs, DataFrames, and calculations
 - Without print(), the output will be empty
 - For DataFrames: use print(df) or print(df.head())
 - For calculations: use print(f"Result: {result}")
 - Maximum timeout: 300 seconds
 - You can always add print statements to get the outputs of the execution, for example the mean of a column in a dataset, or things like that
+- Can load files from S3 using presigned URLs with requests library
+- never assume the structure of the data, always explore the data with executeCode first
+- if you are given an xpt file use pandas.read_sas like df = pd.read_sas("/content/adadas.xpt", format="xport")
 
 ### 2. displayTable
 - Creates beautifully formatted tables with borders and dividers
@@ -153,13 +158,12 @@ export async function POST(request: Request) {
 - Provides proper column alignment and visual separation
 - Ideal for presenting analysis results, comparisons between items, or data summaries
 - Supports captions and custom column alignments (left, center, right)
-- You dont need to display this again, the user will be able to see the table in the UI
-- Once you call this tool, you do not need to present this table again, it will already be displayed
 - When you call this tool, DO NOT MAKE ANOTHER TABLE WITH MARKDOWN FORMAT
 
 
 ## Important Notes:
-
+### File Uploads:
+IT IS VITAL THAT YOU EXPLORE THE DATA BEFORE YOU TRY TO RUN OPERATIONS ON IT. USE executeCode TO EXPLORE THE DATA.
 ### Modal Environment Limitations:
 - The Python code runs in an isolated Modal container
 - The tools (executeCode, displayTable) are NOT available inside the Python code. They aren't python functions, they are tools for you to use
@@ -172,6 +176,7 @@ export async function POST(request: Request) {
 3. Use displayTable for final presentation of structured results, comparisons, or summaries
 4. Break complex tasks into steps: data processing (executeCode) → presentation (displayTable)
 5. You can pass the output of one tool to the input of another tool, for example you can pass the output of executeCode to the input of displayTable
+6. When given a file with data, start by exploring the data with executeCode, seeing the first 5 rows of the data, the shape of the data, the columns of the data, the data types of the columns, the missing values in the data, the summary statistics of the data, etc. this is in the case of an xtp or csv file
 ### Example Workflow:
 1. User asks for data analysis
 2. Use executeCode to process data with Python (with print statements for intermediate results)

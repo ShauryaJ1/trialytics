@@ -53,8 +53,13 @@ class CodeExecutionRequest(BaseModel):
         default=120,
         description="Execution timeout in seconds",
         ge=1,
-        le=300,
+        le=600,
     )
+    
+    # NEW optional S3 file handling fields
+    input_file_url: Optional[str] = Field(None, description="Presigned GET URL for input file")
+    output_file_url: Optional[str] = Field(None, description="Presigned PUT URL for output file") 
+    file_type: Optional[str] = Field(None, description="Input file type: csv, xpt, pdf")
     
     model_config = ConfigDict(
         json_schema_extra={
@@ -156,6 +161,10 @@ async def execute_code(request: CodeExecutionRequest):
     
     The code runs in an isolated environment with common data science packages
     pre-installed (pandas, numpy, scipy, matplotlib, seaborn, etc.).
+    
+    Now supports optional S3 file input/output via presigned URLs:
+    - If input_file_url is provided, the file will be downloaded and made available
+    - If output_file_url is provided, code can write to 'output_content' variable to upload
     """
     try:
         logger.info(f"Executing code with length {len(request.code)} characters")
@@ -167,10 +176,29 @@ async def execute_code(request: CodeExecutionRequest):
                 detail="Code cannot be empty",
             )
         
-        # Execute code via Modal
-        result = modal_executor.run_code(request.code)
+        # Adjust timeout for file operations if needed
+        timeout = request.timeout
+        if request.input_file_url or request.output_file_url:
+            logger.info(f"S3 file handling enabled - Input: {bool(request.input_file_url)}, Output: {bool(request.output_file_url)}")
+            # Use longer timeout for file operations
+            timeout = max(request.timeout, 300)
+            logger.info(f"Using timeout of {timeout} seconds for file operations")
+        
+        # Execute code via Modal with S3 parameters
+        result = modal_executor.run_code(
+            code=request.code,
+            timeout=timeout,
+            input_file_url=request.input_file_url,
+            output_file_url=request.output_file_url,
+            file_type=request.file_type
+        )
         
         logger.info(f"Execution result: success={result['success']}")
+        
+        # Check if file was uploaded (for response)
+        if request.output_file_url and result['success']:
+            if "Successfully uploaded to S3" in result.get('output', ''):
+                result['output'] += "\n\n✅ Output file uploaded to S3"
         
         return CodeExecutionResponse(**result)
         
