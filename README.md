@@ -9,7 +9,9 @@ Our system:
 - Accepts just **three core data documents** from a clinician (clinical trial protocol, raw data, SAP)  
 - Condenses their workflow by **tens to hundreds of documents** and **countless hours** 
 - Ensures compliance with regulatory requirements. It's the difference between approval and starting over completely.
-
+<a href="[http://www.youtube.com/watch?feature=player_embedded&v=nTQUwghvy5Q](https://www.youtube.com/watch?v=mKz1m1JFRIQ)" target="_blank">
+ <img src="[http://img.youtube.com/vi/nTQUwghvy5Q](https://www.youtube.com/watch?v=mKz1m1JFRIQ)/mqdefault.jpg" alt="Watch the video" width="240" height="180" border="10" />
+</a>
 ## How we built it
 We didn’t just wrap a generic GPT model and call it a day. Our team is comprised of scientists with deep regulatory and clinical trial domain expertise. We built everything from the ground up.  
 **Tech stack includes:**
