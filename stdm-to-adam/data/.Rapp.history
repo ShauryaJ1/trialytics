@@ -1,0 +1,3 @@
+load("/Users/bhavnam/Documents/SDTM-to-ADAM-clinical-pipeline/data/adae.rda")
+load("/Users/bhavnam/Documents/SDTM-to-ADAM-clinical-pipeline/data/adlb.rda")
+load("/Users/bhavnam/Documents/SDTM-to-ADAM-clinical-pipeline/data/adsl.rda")
